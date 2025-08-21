@@ -117,7 +117,7 @@ class PlayerController:
         self.control_window.geometry("200x120")
         self.control_window.attributes('-topmost', True)
         self.control_window.protocol("WM_DELETE_WINDOW", self.end_playback)
-        self.control_window.resizable(False, False)
+        self.control_window.resizable(True, True) # Set to True, True to enable resizing
         
         control_frame = ttk.Frame(self.control_window, padding=10)
         control_frame.pack(fill="both", expand=True)
@@ -171,16 +171,17 @@ class PlayerController:
         self.overlay_window = tk.Toplevel(self.main_controller)
         # Setting a very low alpha makes the window and its background transparent,
         # but the drawn circle and text remain visible.
-        self.overlay_window.attributes('-alpha', 0.01) 
         self.overlay_window.attributes('-topmost', True)
         self.overlay_window.overrideredirect(True)
+        # Make the window transparent to mouse clicks
+        self.overlay_window.wm_attributes('-transparentcolor', 'SystemButtonFace')
         
         screen_width = self.main_controller.winfo_screenwidth()
         screen_height = self.main_controller.winfo_screenheight()
         self.overlay_window.geometry(f"{screen_width}x{screen_height}+0+0")
         
-        # Use a canvas with no background to prevent darkening
-        canvas = tk.Canvas(self.overlay_window, highlightthickness=0)
+        # Use a canvas with a background that matches the transparent color
+        canvas = tk.Canvas(self.overlay_window, bg='SystemButtonFace', highlightthickness=0)
         canvas.pack(fill="both", expand=True)
 
         x, y = step["coordinates"]
@@ -208,7 +209,7 @@ class PlayerController:
         if not self.waiting_for_click or not pressed or button != mouse.Button.left or self.is_paused:
             return
         
-        # Advance the tutorial after a short delay
+        # The click passes through the transparent window and is detected here to advance the tutorial
         self.waiting_for_click = False
         self.main_controller.after(100, self.next_step)
         
