@@ -23,6 +23,7 @@ class PlayerController:
         self.control_window = None
         self.waiting_for_click = False
         self.mouse_listener = None
+        self.control_window_rect = None # New attribute to store control window geometry
         
         self.tutorials_dir = os.path.join(os.getcwd(), 'tutorials')
 
@@ -114,7 +115,7 @@ class PlayerController:
         
         self.control_window = tk.Toplevel(self.main_controller)
         self.control_window.title("Tutorial Controls")
-        self.control_window.geometry("200x120")
+        self.control_window.geometry("200x200")
         self.control_window.attributes('-topmost', True)
         self.control_window.protocol("WM_DELETE_WINDOW", self.end_playback)
         self.control_window.resizable(True, True) # Set to True, True to enable resizing
@@ -140,12 +141,21 @@ class PlayerController:
         screen_width = self.main_controller.winfo_screenwidth()
         win_width = self.control_window.winfo_reqwidth()
         self.control_window.geometry(f"+{screen_width - win_width - 10}+10")
+        
+        # Update the control window's geometry
+        self.main_controller.update_idletasks()
+        x = self.control_window.winfo_x()
+        y = self.control_window.winfo_y()
+        width = self.control_window.winfo_width()
+        height = self.control_window.winfo_height()
+        self.control_window_rect = (x, y, x + width, y + height)
     
     def destroy_control_window(self):
         """Destroys the control window."""
         if self.control_window:
             self.control_window.destroy()
             self.control_window = None
+            self.control_window_rect = None # Reset the geometry
 
     def show_step(self):
         """Displays the current tutorial step with a transparent overlay."""
@@ -157,9 +167,8 @@ class PlayerController:
         self.step_label_var.set(f"Step {self.current_step_index + 1}/{len(self.current_tutorial['steps'])}")
         
         self.create_overlay(step)
-        
         self.waiting_for_click = True
-    
+        
     def create_overlay(self, step):
         """
         Creates a top-level window with a highlighted circle and no darkening.
@@ -169,8 +178,6 @@ class PlayerController:
             self.destroy_overlay()
         
         self.overlay_window = tk.Toplevel(self.main_controller)
-        # Setting a very low alpha makes the window and its background transparent,
-        # but the drawn circle and text remain visible.
         self.overlay_window.attributes('-topmost', True)
         self.overlay_window.overrideredirect(True)
         # Make the window transparent to mouse clicks
@@ -192,7 +199,7 @@ class PlayerController:
         if step.get("notes"):
             info_text += f"\nNote: {step['notes']}"
         
-        # Draw the text label on the canvas
+        # Draw the text label on the canvas with a contrasting color
         canvas.create_text(x, y - 60, text=info_text, fill='white', font=('Arial', 14, 'bold'), anchor='s')
         
     def destroy_overlay(self):
@@ -204,12 +211,19 @@ class PlayerController:
     def on_click(self, x, y, button, pressed):
         """
         Callback for the pynput listener.
-        It checks for a click and advances the step regardless of location.
+        It checks for a click and advances the step, but only if it's not on the control window.
         """
         if not self.waiting_for_click or not pressed or button != mouse.Button.left or self.is_paused:
             return
         
-        # The click passes through the transparent window and is detected here to advance the tutorial
+        # Check if the click is within the control window's bounds
+        if self.control_window_rect and \
+           self.control_window_rect[0] <= x <= self.control_window_rect[2] and \
+           self.control_window_rect[1] <= y <= self.control_window_rect[3]:
+            # Click is on the control window, do not advance step
+            return
+        
+        # If the click is not on the control window, advance the step
         self.waiting_for_click = False
         self.main_controller.after(100, self.next_step)
         
