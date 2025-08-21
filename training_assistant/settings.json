@@ -1,0 +1,9 @@
+{
+  "theme": "dark",
+  "shortcuts": {
+    "record": "<Control-r>",
+    "play": "<Control-p>",
+    "settings": "<Control-comma>",
+    "back": "<Escape>"
+  }
+}
