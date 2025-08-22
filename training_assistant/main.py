@@ -9,18 +9,26 @@ from views.player_view import PlayerView
 from views.settings_view import SettingsView
 from controllers.recorder_controller import RecorderController
 from controllers.player_controller import PlayerController
+import os
+import sys
+
+def get_base_path():
+    """Gets the base path for resources, whether running in PyInstaller or as a script."""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, 'data')
+    return os.getcwd()
 
 class TrainingAssistantController(tk.Tk):
     def __init__(self):
         super().__init__()
         self.model = AppModel()
-        self.recorder = RecorderController(self, self.model)
-        self.player = PlayerController(self, self.model)
+        # Initialize controllers with a reference to the main app
+        self.recorder = RecorderController(self)
+        self.player = PlayerController(self)
         self.setup_window()
         self.create_views()
         self.show_home()
         self.update_theme()
-        self.iconbitmap("assets/myIcon.ico")
     
     def setup_window(self):
         self.title("Interactive Training Assistant")
@@ -28,6 +36,13 @@ class TrainingAssistantController(tk.Tk):
         self.resizable(True, True)
         self.minsize(800, 500)
         
+        # Get the path to the icon file
+        icon_path = os.path.join(get_base_path(), 'assets', 'myIcon.ico')
+        if os.path.exists(icon_path):
+            self.iconbitmap(icon_path)
+        else:
+            print(f"Icon file not found at: {icon_path}")
+            
         self.create_menu()
         
         self.container = tk.Frame(self)
@@ -42,8 +57,6 @@ class TrainingAssistantController(tk.Tk):
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Preferences", menu=file_menu)
         file_menu.add_command(label="Settings", command=self.show_settings)
-        # file_menu.add_separator()
-        # file_menu.add_command(label="Exit", command=self.quit_app)
     
     def create_views(self):
         self.views = {}
@@ -75,16 +88,20 @@ class TrainingAssistantController(tk.Tk):
     def show_settings(self):
         self.show_frame('settings')
     
-    def start_recording(self, tutorial_name):
-        self.recorder.start_recording(tutorial_name)
+    def start_recording(self, tutorial_name, file_path):
+        """Starts a new recording session with a specified save path."""
+        self.recorder.start_recording(tutorial_name, file_path)
     
     def stop_recording(self):
+        """Stops the recording session and saves the tutorial to the predetermined path."""
         self.recorder.stop_recording()
     
-    def load_tutorial(self, tutorial_path):
-        self.player.load_tutorial(tutorial_path)
+    def load_tutorial(self):
+        """Prompts the user to load a tutorial file."""
+        self.player.load_tutorial()
     
     def start_playback(self):
+        """Starts playback of the loaded tutorial."""
         self.player.start_playback()
     
     def quit_app(self):
@@ -99,8 +116,6 @@ class TrainingAssistantController(tk.Tk):
         for view in self.views.values():
             if hasattr(view, 'bind_shortcuts'):
                 view.bind_shortcuts()
-
-
 
 if __name__ == "__main__":
     app = TrainingAssistantController()

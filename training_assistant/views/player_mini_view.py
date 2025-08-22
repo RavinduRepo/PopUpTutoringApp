@@ -1,7 +1,10 @@
 # views/player_mini_view.py
+
 import tkinter as tk
 from tkinter import ttk
-from PIL import Image, ImageTk, ImageDraw
+from PIL import Image, ImageTk, ImageDraw, ImageFont
+import os
+import sys
 
 class PlayerMiniView:
     """Handles the UI for the tutorial playback."""
@@ -12,7 +15,7 @@ class PlayerMiniView:
         self.overlay_window = None
         self.play_pause_btn = None
         self.step_label_var = None
-        self.thumbnail_label = None # New: Label to display the thumbnail
+        self.thumbnail_label = None
         self.next_step_callback = next_step_callback
         self.previous_step_callback = previous_step_callback
         self.toggle_pause_callback = toggle_pause_callback
@@ -21,7 +24,7 @@ class PlayerMiniView:
         # Variables for dragging the window
         self.drag_x = 0
         self.drag_y = 0
-        self.thumbnail_photo = None # New: Store PhotoImage to prevent garbage collection
+        self.thumbnail_photo = None # Store PhotoImage to prevent garbage collection
 
     def create_control_window(self):
         """Creates a small, always-on-top control window for playback."""
@@ -34,23 +37,27 @@ class PlayerMiniView:
         self.control_window.overrideredirect(True) # Remove window decorations
         self.control_window.resizable(False, False) # Non-resizable
 
+        # Use a style to remove the border and padding
+        style = ttk.Style()
+        style.configure("Borderless.TFrame", padding=0)
+
         # Main frame for content with a grid layout
         main_frame = ttk.Frame(self.control_window, padding=5)
         main_frame.pack(fill="both", expand=True)
         
         # Draggable header frame on the left
-        header_frame = ttk.Frame(main_frame, width=30)
+        header_frame = ttk.Frame(main_frame, width=20)
         header_frame.pack(side="left", fill="y", padx=(0, 5))
         
         # Bind dragging events to the header frame
         header_frame.bind("<ButtonPress-1>", self.on_drag_start)
         header_frame.bind("<B1-Motion>", self.on_drag_motion)
         
-        # Control buttons frame
+        # Control buttons and info frame
         control_frame = ttk.Frame(main_frame)
         control_frame.pack(side="left", fill="both", expand=True)
 
-        # New: Label to display the thumbnail image
+        # Label to display the thumbnail image
         self.thumbnail_label = ttk.Label(control_frame)
         self.thumbnail_label.pack(pady=(0, 10))
         
@@ -66,7 +73,7 @@ class PlayerMiniView:
         self.play_pause_btn.pack(side=tk.LEFT, padx=2)
         ttk.Button(button_frame, text="⏩ Next", command=self.next_step_callback, width=6).pack(side=tk.LEFT, padx=2)
         
-        ttk.Button(control_frame, text="⏹ Stop", command=self.end_playback_callback, style="Record.TButton", width=10).pack(pady=(10, 0))
+        ttk.Button(control_frame, text="⏹ Stop", command=self.end_playback_callback, width=10).pack(pady=(10, 0))
         
         # Position the window in the top-right corner
         screen_width = self.parent.winfo_screenwidth()
@@ -91,11 +98,11 @@ class PlayerMiniView:
         if self.play_pause_btn:
             self.play_pause_btn.config(text=text)
 
-    def get_control_window_rect(self,):
+    def get_control_window_rect(self):
         """Returns the geometry of the control window."""
         if not self.control_window:
             return None
-        self.parent.update_idletasks()
+        self.control_window.update_idletasks()
         x = self.control_window.winfo_x()
         y = self.control_window.winfo_y()
         width = self.control_window.winfo_width()
@@ -109,21 +116,17 @@ class PlayerMiniView:
             self.control_window = None
 
     def update_step_display(self, step_info):
-        """Updates the step count and thumbnail image."""
+        """Updates the step count, notes, and thumbnail image."""
         if self.control_window:
             info_text = f"Step {step_info['index'] + 1}/{step_info['total']}"
             if step_info.get("notes"):
-                info_text += f"\nNote: {step_info['notes']}"
+                info_text += f"\n{step_info['notes']}"
             self.step_label_var.set(info_text)
 
-            if step_info.get("thumb_path") and self.thumbnail_label:
-                try:
-                    thumb_img = Image.open(step_info["thumb_path"])
-                    self.thumbnail_photo = ImageTk.PhotoImage(thumb_img)
-                    self.thumbnail_label.config(image=self.thumbnail_photo)
-                except FileNotFoundError:
-                    print(f"Thumbnail file not found: {step_info['thumb_path']}")
-                    self.thumbnail_label.config(image='')
+            if step_info.get("thumb") and self.thumbnail_label:
+                thumb_img = step_info["thumb"]
+                self.thumbnail_photo = ImageTk.PhotoImage(thumb_img)
+                self.thumbnail_label.config(image=self.thumbnail_photo)
     
     def create_overlay(self, step_info):
         """

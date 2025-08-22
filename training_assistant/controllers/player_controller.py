@@ -1,22 +1,32 @@
+# controllers/player_controller.py
+
 import json
 import os
 import threading
 import time
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 from pynput import mouse
 from views.player_mini_view import PlayerMiniView
 import cv2
 import numpy as np
 import mss
 from PIL import Image
+import base64
+import io
+import sys
+
+def get_base_path():
+    """Gets the base path for resources, whether running in PyInstaller or as a script."""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, 'data')
+    return os.getcwd()
 
 class PlayerController:
     """Manages the playback of a recorded tutorial."""
 
-    def __init__(self, main_controller, model):
+    def __init__(self, main_controller):
         self.main_controller = main_controller
-        self.model = model
         self.current_tutorial = None
         self.current_step_index = 0
         self.is_playing = False
@@ -25,9 +35,6 @@ class PlayerController:
         self.mouse_listener = None
         self.control_window_rect = None
         
-        self.tutorials_dir = os.path.join(os.getcwd(), 'tutorials')
-        self.screenshots_dir = os.path.join(os.getcwd(), 'screenshots')
-
         self.player_view = PlayerMiniView(
             parent=self.main_controller,
             next_step_callback=self.next_step,
@@ -36,21 +43,29 @@ class PlayerController:
             end_playback_callback=self.end_playback
         )
         
-    def load_tutorial(self, tutorial_path):
+    def load_tutorial(self):
         """Loads a tutorial from a JSON file."""
+        # This method is now obsolete as the view handles the file dialog.
+        # It's kept for legacy but the load_tutorial_by_path is the new entry point
+        pass
+
+    def load_tutorial_by_path(self, file_path):
+        """Loads a tutorial from a given JSON file path."""
         if self.is_playing:
             messagebox.showwarning("Playback in Progress", "Please stop the current playback before loading a new tutorial.")
             return False
 
         try:
-            with open(tutorial_path, 'r') as f:
+            with open(file_path, 'r') as f:
                 self.current_tutorial = json.load(f)
             self.current_step_index = 0
+            messagebox.showinfo("Tutorial Loaded", f"Tutorial '{self.current_tutorial['name']}' loaded successfully.")
             return True
         except Exception as e:
-            messagebox.showerror("Load Error", f"Failed to load tutorial from '{tutorial_path}': {e}")
+            messagebox.showerror("Load Error", f"Failed to load tutorial from '{file_path}': {e}")
             self.current_tutorial = None
             return False
+
 
     def start_playback(self, from_start=True):
         """Starts the playback of the loaded tutorial."""
@@ -129,13 +144,11 @@ class PlayerController:
         
     def is_click_on_app_window(self, x, y):
         """Checks if the click coordinates are within any of the app's windows."""
-        # Check main window
         main_window_rect = self.get_window_rect(self.main_controller)
         if main_window_rect[0] <= x <= main_window_rect[2] and \
            main_window_rect[1] <= y <= main_window_rect[3]:
             return True
             
-        # Check mini-view window
         if self.player_view and self.player_view.control_window:
             mini_view_rect = self.get_window_rect(self.player_view.control_window)
             if mini_view_rect[0] <= x <= mini_view_rect[2] and \
@@ -143,56 +156,78 @@ class PlayerController:
                 return True
                 
         return False
+        
+    def _find_match_on_screen(self, template_image):
+        """
+        Finds the location of a smaller template image (thumbnail) on the live screen.
+        Returns the top-left coordinates (x, y) of the best match.
+        """
+        with mss.mss() as sct:
+            screenshot = sct.grab(sct.monitors[0])
+            full_image_pil = Image.frombytes('RGB', screenshot.size, screenshot.bgra, 'raw', 'BGRX')
+        
+        # Convert PIL images to OpenCV format (numpy arrays)
+        full_image_np = np.array(full_image_pil)
+        template_np = np.array(template_image)
+
+        # Convert to grayscale for better matching performance
+        full_image_gray = cv2.cvtColor(full_image_np, cv2.COLOR_BGR2GRAY)
+        template_gray = cv2.cvtColor(template_np, cv2.COLOR_BGR2GRAY)
+
+        # Perform template matching
+        result = cv2.matchTemplate(full_image_gray, template_gray, cv2.TM_CCOEFF_NORMED)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+
+        # Set a confidence threshold
+        if max_val >= 0.8: # You can adjust this threshold
+            # max_loc is the top-left corner of the best match
+            return max_loc
+        else:
+            return None
 
     def show_step(self):
-        """Displays the current tutorial step with a transparent overlay."""
+        """
+        Displays the current tutorial step.
+        If a match is found, it will highlight the detected location.
+        Otherwise, it will fall back to the recorded coordinates.
+        """
         if not self.is_playing or self.is_paused or self.current_step_index >= len(self.current_tutorial["steps"]):
             self.end_playback()
             return
         
         step = self.current_tutorial["steps"][self.current_step_index]
-        current_coordinates = list(step["coordinates"])
+        recorded_coordinates = list(step["coordinates"])
         
-        thumbnail_path = os.path.join(self.screenshots_dir, step["thumb_path"])
+        # Decode the thumbnail image from the step data
+        thumb_data = base64.b64decode(step["thumb"])
+        thumb_image = Image.open(io.BytesIO(thumb_data))
+
+        detected_coordinates = self._find_match_on_screen(thumb_image)
         
-        try:
-            with mss.mss() as sct:
-                monitor = sct.monitors[0]
-                screenshot = sct.grab(monitor)
-            
-            # Convert the screenshot from BGRA to grayscale
-            current_screen_np = np.array(screenshot, dtype=np.uint8)
-            current_screen_gray = cv2.cvtColor(current_screen_np, cv2.COLOR_BGRA2GRAY)
+        if detected_coordinates:
+            print(f"Match found for step {self.current_step_index + 1} at {detected_coordinates}")
+            # The match returns the top-left corner. We need to find the center for the highlight.
+            thumb_w, thumb_h = thumb_image.size
+            highlight_coordinates = (
+                detected_coordinates[0] + thumb_w // 2,
+                detected_coordinates[1] + thumb_h // 2
+            )
+            highlight_color = "green"
+            highlight_radius = max(thumb_w, thumb_h) // 2 + 10
+        else:
+            print(f"No match found for step {self.current_step_index + 1}. Using recorded coordinates.")
+            highlight_coordinates = recorded_coordinates
+            highlight_color = "red"
+            highlight_radius = 20
 
-            # Load the thumbnail and convert it to grayscale
-            thumbnail = cv2.imread(thumbnail_path)
-            
-            if thumbnail is not None:
-                thumbnail_gray = cv2.cvtColor(thumbnail, cv2.COLOR_BGR2GRAY)
-
-                # Perform template matching on grayscale images
-                result = cv2.matchTemplate(current_screen_gray, thumbnail_gray, cv2.TM_CCOEFF_NORMED)
-                min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-
-                if max_val > 0.8:
-                    thumb_h, thumb_w = thumbnail_gray.shape
-                    new_x = max_loc[0] + thumb_w // 2
-                    new_y = max_loc[1] + thumb_h // 2
-                    current_coordinates = [new_x, new_y]
-                    print(f"Match found! New coordinates: ({new_x}, {new_y})")
-                else:
-                    print("No strong match found, using recorded coordinates.")
-            else:
-                print(f"Thumbnail image not found at {thumbnail_path}, using recorded coordinates.")
-        except Exception as e:
-            print(f"Error during template matching: {e}. Using recorded coordinates.")
-            
         step_info = {
             "index": self.current_step_index,
             "total": len(self.current_tutorial['steps']),
             "notes": step.get("notes"),
-            "coordinates": current_coordinates,
-            "thumb_path": thumbnail_path
+            "coordinates": highlight_coordinates,
+            "thumb": thumb_image,
+            "highlight_color": highlight_color,
+            "highlight_radius": highlight_radius
         }
         
         self.player_view.update_step_display(step_info)

@@ -10,51 +10,49 @@ import pynput
 from pynput import mouse, keyboard
 import pyautogui
 import mss
-from PIL import Image, ImageDraw
-from tkinter import messagebox
+from PIL import Image
+from tkinter import messagebox, filedialog
 from views.recorder_mini_view import RecorderMiniView
 import cv2
 import numpy as np
+import base64
+import io
+import sys
+
+def get_base_path():
+    """Gets the base path for resources, whether running in PyInstaller or as a script."""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, 'data')
+    return os.getcwd()
 
 class RecorderController:
     """Manages the recording of user interactions."""
 
-    def __init__(self, main_controller, model):
+    def __init__(self, main_controller):
         self.main_controller = main_controller
-        self.model = model
         self.is_recording = False
         self.is_paused = False
         self.steps = []
-        self.tutorial_name = ""
         self.mouse_listener = None
         self.keyboard_listener = None
         self.hotkey_pressed = False
         self.recorder_mini_view = None
-        
-        self.tutorials_dir = os.path.join(os.getcwd(), 'tutorials')
-        self.screenshots_dir = os.path.join(os.getcwd(), 'screenshots')
-        os.makedirs(self.tutorials_dir, exist_ok=True)
-        os.makedirs(self.screenshots_dir, exist_ok=True)
+        self.save_file_path = None # Stores the file path for saving
+        self.tutorial_name = ""
         
         pyautogui.FAILSAFE = False
         
-    def start_recording(self, tutorial_name):
-        """Starts a new tutorial recording."""
+    def start_recording(self, tutorial_name, file_path):
+        """Starts a new tutorial recording and sets the save path."""
         if self.is_recording:
-            return False
-        
-        self.tutorial_name = tutorial_name.strip()
-        if not self.tutorial_name:
-            messagebox.showerror("Error", "Please enter a tutorial name.")
             return False
 
         self.steps = []
         self.is_recording = True
         self.is_paused = False
         self.hotkey_pressed = False
-        
-        tutorial_screenshot_dir = os.path.join(self.screenshots_dir, self.tutorial_name)
-        os.makedirs(tutorial_screenshot_dir, exist_ok=True)
+        self.save_file_path = file_path
+        self.tutorial_name = tutorial_name
         
         self.recorder_mini_view = RecorderMiniView(
             parent=self.main_controller,
@@ -65,11 +63,11 @@ class RecorderController:
         self.recorder_mini_view.create_window()
         
         self.start_listeners()
-        print(f"Recording started for: {self.tutorial_name}")
+        print(f"Recording started. Saving to {file_path}")
         return True
 
     def stop_recording(self):
-        """Stops the recording and saves the tutorial."""
+        """Stops the recording and saves the tutorial to the predetermined path."""
         if not self.is_recording:
             return None
         
@@ -88,18 +86,22 @@ class RecorderController:
             "name": self.tutorial_name,
             "created": datetime.now().isoformat(),
             "steps": self.steps,
-            "version": "1.0"
+            "version": "2.0"
         }
         
-        tutorial_filename = f"{self.tutorial_name.replace(' ', '_')}.json"
-        tutorial_path = os.path.join(self.tutorials_dir, tutorial_filename)
+        try:
+            if self.save_file_path:
+                with open(self.save_file_path, 'w') as f:
+                    json.dump(tutorial_data, f, indent=2)
+                messagebox.showinfo("Success", f"Tutorial saved successfully to {self.save_file_path}")
+            else:
+                messagebox.showerror("Save Error", "No save path was specified.")
+        except Exception as e:
+            messagebox.showerror("Save Error", f"An error occurred while saving the tutorial: {e}")
         
-        with open(tutorial_path, 'w') as f:
-            json.dump(tutorial_data, f, indent=2)
-            
-        print(f"Tutorial saved: {tutorial_path}")
-        messagebox.showinfo("Success", f"Tutorial '{self.tutorial_name}' saved successfully!")
-        return tutorial_path
+        self.save_file_path = None
+        print(f"Tutorial saved to: {self.save_file_path}")
+        return self.save_file_path
 
     def toggle_pause(self):
         """Toggles the recording pause state."""
@@ -111,18 +113,10 @@ class RecorderController:
             self.recorder_mini_view.update_pause_button(self.is_paused)
 
     def undo_last_step(self):
-        """Removes the last recorded step and its screenshot."""
+        """Removes the last recorded step."""
         if self.steps:
-            removed_step = self.steps.pop()
-            try:
-                # Also remove the full screenshot and the thumbnail
-                screenshot_path = os.path.join(self.screenshots_dir, removed_step["screenshot"])
-                thumb_path = os.path.join(self.screenshots_dir, removed_step["thumb_path"])
-                os.remove(screenshot_path)
-                os.remove(thumb_path)
-                print(f"Undone step {removed_step['step_number']}")
-            except FileNotFoundError:
-                print("Screenshot or thumbnail file not found, but step removed from list.")
+            self.steps.pop()
+            print("Undone last step.")
         self.main_controller.views['record'].update_step_count(len(self.steps))
 
     def start_listeners(self):
@@ -200,41 +194,34 @@ class RecorderController:
         self.hotkey_pressed = False
     
     def capture_step(self, x, y):
-        """Captures a screenshot and saves the step data."""
+        """Captures a screenshot and saves the step data as a Base64 string."""
         try:
             with mss.mss() as sct:
                 screenshot = sct.grab(sct.monitors[0])
                 full_image = Image.frombytes('RGB', screenshot.size, screenshot.bgra, 'raw', 'BGRX')
             
-            step_num = len(self.steps) + 1
+            # Save the full image to an in-memory byte buffer
+            buffered = io.BytesIO()
+            full_image.save(buffered, format="PNG")
+            img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
             
-            tutorial_screenshot_dir = os.path.join(self.screenshots_dir, self.tutorial_name)
-            
-            screenshot_filename = f"{self.tutorial_name.replace(' ', '_')}_step_{step_num}_{int(time.time())}.png"
-            thumb_filename = f"{self.tutorial_name.replace(' ', '_')}_thumb_{step_num}_{int(time.time())}.png"
-            
-            screenshot_path = os.path.join(tutorial_screenshot_dir, screenshot_filename)
-            thumb_path = os.path.join(tutorial_screenshot_dir, thumb_filename)
-            
-            full_image.save(screenshot_path)
-
+            # Save the thumbnail to an in-memory byte buffer
             thumb_size = 50
             left = max(0, x - thumb_size // 2)
             top = max(0, y - thumb_size // 2)
             right = min(full_image.width, x + thumb_size // 2)
             bottom = min(full_image.height, y + thumb_size // 2)
-            
             cropped_image = full_image.crop((left, top, right, bottom))
-            cropped_image.save(thumb_path)
+            thumb_buffered = io.BytesIO()
+            cropped_image.save(thumb_buffered, format="PNG")
+            thumb_str = base64.b64encode(thumb_buffered.getvalue()).decode('utf-8')
             
-            # Store the path relative to the screenshots directory
-            relative_screenshot_path = os.path.join(self.tutorial_name, screenshot_filename)
-            relative_thumb_path = os.path.join(self.tutorial_name, thumb_filename)
+            step_num = len(self.steps) + 1
             
             step = {
                 "step_number": step_num,
-                "screenshot": relative_screenshot_path,
-                "thumb_path": relative_thumb_path,
+                "screenshot": img_str,
+                "thumb": thumb_str,
                 "coordinates": [x, y],
                 "timestamp": datetime.now().isoformat(),
                 "notes": ""
@@ -247,4 +234,3 @@ class RecorderController:
         except Exception as e:
             print(f"Error capturing step: {e}")
             messagebox.showerror("Capture Error", f"An error occurred while capturing a step: {e}")
-            

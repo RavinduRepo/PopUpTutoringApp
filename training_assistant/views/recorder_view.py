@@ -1,7 +1,7 @@
 # views/recorder_view.py
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from views.home_view import BaseView
 
 class RecordView(BaseView):
@@ -33,11 +33,11 @@ class RecordView(BaseView):
         controls_frame.pack(pady=20)
         
         self.start_btn = ttk.Button(controls_frame, text="🔴 Start Recording",
-                                   command=self.start_recording, width=20, style="Record.TButton")
+                                     command=self.start_recording, width=20, style="Record.TButton")
         self.start_btn.pack(side=tk.LEFT, padx=5)
         
         self.stop_btn = ttk.Button(controls_frame, text="⏹ Stop Recording",
-                                   command=self.stop_recording, width=20, state="disabled")
+                                     command=self.stop_recording, width=20, state="disabled")
         self.stop_btn.pack(side=tk.LEFT, padx=5)
         
         # Status Label
@@ -60,12 +60,21 @@ class RecordView(BaseView):
             messagebox.showerror("Error", "Please enter a tutorial name.")
             return
 
-        if self.controller.recorder.start_recording(tutorial_name):
-            self.is_recording = True
-            self.name_entry.config(state='disabled')
-            self.start_btn.config(state='disabled')
-            self.stop_btn.config(state='normal')
-            self.update_status("Recording... Use F9 to pause/resume, F10 to undo.")
+        # Open a file dialog to get the save path and filename
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json")],
+            title="Save Tutorial As",
+            initialfile=tutorial_name
+        )
+        
+        if file_path:
+            if self.controller.recorder.start_recording(tutorial_name, file_path):
+                self.is_recording = True
+                self.name_entry.config(state='disabled')
+                self.start_btn.config(state='disabled')
+                self.stop_btn.config(state='normal')
+                self.update_status(f"Recording '{tutorial_name}'... Use F9 to pause/resume, F10 to undo.")
             
     def stop_recording(self):
         self.controller.recorder.stop_recording()
