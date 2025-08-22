@@ -233,7 +233,7 @@ class PlayerController:
         self.mouse_listener = mouse.Listener(on_click=self.on_click)
         self.mouse_listener.start()
     
-    def stop_click_listener(self):
+    def stop_click_listener(self):  
         """Stops the pynput listener."""
         if self.mouse_listener and self.mouse_listener.is_alive():
             self.mouse_listener.stop()

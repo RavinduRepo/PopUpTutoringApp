@@ -1,0 +1,107 @@
+{
+  "name": "docker2",
+  "created": "2025-08-22T09:18:26.422544",
+  "steps": [
+    {
+      "step_number": 1,
+      "screenshot": "screenshots\\docker2\\step_1_1755834470.png",
+      "coordinates": [
+        1290,
+        944
+      ],
+      "timestamp": "2025-08-22T09:17:51.022375",
+      "notes": ""
+    },
+    {
+      "step_number": 2,
+      "screenshot": "screenshots\\docker2\\step_2_1755834474.png",
+      "coordinates": [
+        123,
+        172
+      ],
+      "timestamp": "2025-08-22T09:17:54.837355",
+      "notes": ""
+    },
+    {
+      "step_number": 3,
+      "screenshot": "screenshots\\docker2\\step_3_1755834476.png",
+      "coordinates": [
+        505,
+        531
+      ],
+      "timestamp": "2025-08-22T09:17:56.937878",
+      "notes": ""
+    },
+    {
+      "step_number": 4,
+      "screenshot": "screenshots\\docker2\\step_4_1755834485.png",
+      "coordinates": [
+        1746,
+        188
+      ],
+      "timestamp": "2025-08-22T09:18:05.139529",
+      "notes": ""
+    },
+    {
+      "step_number": 5,
+      "screenshot": "screenshots\\docker2\\step_5_1755834488.png",
+      "coordinates": [
+        1752,
+        183
+      ],
+      "timestamp": "2025-08-22T09:18:08.487674",
+      "notes": ""
+    },
+    {
+      "step_number": 6,
+      "screenshot": "screenshots\\docker2\\step_6_1755834491.png",
+      "coordinates": [
+        169,
+        396
+      ],
+      "timestamp": "2025-08-22T09:18:11.611099",
+      "notes": ""
+    },
+    {
+      "step_number": 7,
+      "screenshot": "screenshots\\docker2\\step_7_1755834495.png",
+      "coordinates": [
+        612,
+        222
+      ],
+      "timestamp": "2025-08-22T09:18:16.028463",
+      "notes": ""
+    },
+    {
+      "step_number": 8,
+      "screenshot": "screenshots\\docker2\\step_8_1755834498.png",
+      "coordinates": [
+        1790,
+        228
+      ],
+      "timestamp": "2025-08-22T09:18:18.613219",
+      "notes": ""
+    },
+    {
+      "step_number": 9,
+      "screenshot": "screenshots\\docker2\\step_9_1755834503.png",
+      "coordinates": [
+        1360,
+        1033
+      ],
+      "timestamp": "2025-08-22T09:18:23.109628",
+      "notes": ""
+    },
+    {
+      "step_number": 10,
+      "screenshot": "screenshots\\docker2\\step_10_1755834506.png",
+      "coordinates": [
+        539,
+        256
+      ],
+      "timestamp": "2025-08-22T09:18:26.310063",
+      "notes": ""
+    }
+  ],
+  "version": "1.0"
+}
