@@ -12,6 +12,7 @@ import pyautogui
 import mss
 from PIL import Image, ImageDraw
 from tkinter import messagebox
+from views.recorder_mini_view import RecorderMiniView
 
 class RecorderController:
     """Manages the recording of user interactions."""
@@ -26,6 +27,7 @@ class RecorderController:
         self.mouse_listener = None
         self.keyboard_listener = None
         self.hotkey_pressed = False
+        self.recorder_mini_view = None
         
         self.tutorials_dir = os.path.join(os.getcwd(), 'tutorials')
         self.screenshots_dir = os.path.join(os.getcwd(), 'screenshots')
@@ -33,7 +35,7 @@ class RecorderController:
         os.makedirs(self.screenshots_dir, exist_ok=True)
         
         pyautogui.FAILSAFE = False
-
+        
     def start_recording(self, tutorial_name):
         """Starts a new tutorial recording."""
         if self.is_recording:
@@ -53,6 +55,15 @@ class RecorderController:
         tutorial_screenshot_dir = os.path.join(self.screenshots_dir, self.tutorial_name)
         os.makedirs(tutorial_screenshot_dir, exist_ok=True)
         
+        # Instantiate and create the mini control view
+        self.recorder_mini_view = RecorderMiniView(
+            parent=self.main_controller,
+            toggle_pause_callback=self.toggle_pause,
+            stop_recording_callback=self.stop_recording,
+            undo_last_step_callback=self.undo_last_step
+        )
+        self.recorder_mini_view.create_window()
+        
         self.start_listeners()
         print(f"Recording started for: {self.tutorial_name}")
         return True
@@ -66,6 +77,9 @@ class RecorderController:
         self.is_paused = False
         self.stop_listeners()
         
+        if self.recorder_mini_view:
+            self.recorder_mini_view.destroy_window()
+
         if not self.steps:
             messagebox.showinfo("Recording Stopped", "No steps were recorded.")
             return None
@@ -94,6 +108,8 @@ class RecorderController:
         status = "paused" if self.is_paused else "resumed"
         print(f"Recording {status}")
         self.main_controller.views['record'].update_status(status)
+        if self.recorder_mini_view:
+            self.recorder_mini_view.update_pause_button(self.is_paused)
 
     def undo_last_step(self):
         """Removes the last recorded step and its screenshot."""
@@ -105,7 +121,6 @@ class RecorderController:
             except FileNotFoundError:
                 print("Screenshot file not found, but step removed from list.")
         self.main_controller.views['record'].update_step_count(len(self.steps))
-
 
     def start_listeners(self):
         """Starts background listeners for mouse and keyboard events."""
@@ -123,12 +138,43 @@ class RecorderController:
         if self.keyboard_listener and self.keyboard_listener.is_alive():
             self.keyboard_listener.stop()
             self.keyboard_listener = None
+    
+    def get_window_rect(self, window):
+        """Gets the bounding box of a Tkinter window."""
+        window.update_idletasks()
+        x = window.winfo_rootx()
+        y = window.winfo_rooty()
+        width = window.winfo_width()
+        height = window.winfo_height()
+        return (x, y, x + width, y + height)
+        
+    def is_click_on_app_window(self, x, y):
+        """Checks if the click coordinates are within any of the app's windows."""
+        # Check main window
+        main_window_rect = self.get_window_rect(self.main_controller)
+        if main_window_rect[0] <= x <= main_window_rect[2] and \
+           main_window_rect[1] <= y <= main_window_rect[3]:
+            return True
+            
+        # Check mini-view window
+        if self.recorder_mini_view and self.recorder_mini_view.window:
+            mini_view_rect = self.get_window_rect(self.recorder_mini_view.window)
+            if mini_view_rect[0] <= x <= mini_view_rect[2] and \
+               mini_view_rect[1] <= y <= mini_view_rect[3]:
+                return True
+                
+        return False
 
     def on_mouse_click(self, x, y, button, pressed):
         """Handles mouse clicks and captures a step."""
         if not self.is_recording or self.is_paused or not pressed:
             return
-        
+            
+        # If the click is on one of our app windows, ignore it
+        if self.is_click_on_app_window(x, y):
+            print("Click detected on app window, ignoring.")
+            return
+
         if button == mouse.Button.left:
             self.capture_step(x, y)
 
