@@ -1,0 +1,62 @@
+{
+  "name": "new",
+  "created": "2025-08-22T16:03:57.160763",
+  "steps": [
+    {
+      "step_number": 1,
+      "screenshot": "screenshots\\new\\step_1_1755858825.png",
+      "thumb_path": "screenshots\\new\\thumb_1_1755858825.png",
+      "coordinates": [
+        762,
+        202
+      ],
+      "timestamp": "2025-08-22T16:03:45.884593",
+      "notes": ""
+    },
+    {
+      "step_number": 2,
+      "screenshot": "screenshots\\new\\step_2_1755858828.png",
+      "thumb_path": "screenshots\\new\\thumb_2_1755858828.png",
+      "coordinates": [
+        1903,
+        111
+      ],
+      "timestamp": "2025-08-22T16:03:48.634984",
+      "notes": ""
+    },
+    {
+      "step_number": 3,
+      "screenshot": "screenshots\\new\\step_3_1755858829.png",
+      "thumb_path": "screenshots\\new\\thumb_3_1755858829.png",
+      "coordinates": [
+        1893,
+        229
+      ],
+      "timestamp": "2025-08-22T16:03:50.001891",
+      "notes": ""
+    },
+    {
+      "step_number": 4,
+      "screenshot": "screenshots\\new\\step_4_1755858832.png",
+      "thumb_path": "screenshots\\new\\thumb_4_1755858832.png",
+      "coordinates": [
+        1900,
+        109
+      ],
+      "timestamp": "2025-08-22T16:03:52.410670",
+      "notes": ""
+    },
+    {
+      "step_number": 5,
+      "screenshot": "screenshots\\new\\step_5_1755858833.png",
+      "thumb_path": "screenshots\\new\\thumb_5_1755858833.png",
+      "coordinates": [
+        1904,
+        78
+      ],
+      "timestamp": "2025-08-22T16:03:53.954335",
+      "notes": ""
+    }
+  ],
+  "version": "1.0"
+}

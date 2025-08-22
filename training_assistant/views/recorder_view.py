@@ -1,3 +1,5 @@
+# views/recorder_view.py
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 from views.home_view import BaseView

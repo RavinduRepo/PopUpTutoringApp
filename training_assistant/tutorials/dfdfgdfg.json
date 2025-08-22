@@ -1,0 +1,62 @@
+{
+  "name": "dfdfgdfg",
+  "created": "2025-08-22T15:45:32.544745",
+  "steps": [
+    {
+      "step_number": 1,
+      "screenshot": "screenshots\\dfdfgdfg\\step_1_1755857721.png",
+      "thumb_path": "screenshots\\dfdfgdfg\\thumb_1_1755857721.png",
+      "coordinates": [
+        1897,
+        121
+      ],
+      "timestamp": "2025-08-22T15:45:21.517187",
+      "notes": ""
+    },
+    {
+      "step_number": 2,
+      "screenshot": "screenshots\\dfdfgdfg\\step_2_1755857723.png",
+      "thumb_path": "screenshots\\dfdfgdfg\\thumb_2_1755857723.png",
+      "coordinates": [
+        1898,
+        181
+      ],
+      "timestamp": "2025-08-22T15:45:23.508487",
+      "notes": ""
+    },
+    {
+      "step_number": 3,
+      "screenshot": "screenshots\\dfdfgdfg\\step_3_1755857724.png",
+      "thumb_path": "screenshots\\dfdfgdfg\\thumb_3_1755857724.png",
+      "coordinates": [
+        1902,
+        213
+      ],
+      "timestamp": "2025-08-22T15:45:24.562883",
+      "notes": ""
+    },
+    {
+      "step_number": 4,
+      "screenshot": "screenshots\\dfdfgdfg\\step_4_1755857725.png",
+      "thumb_path": "screenshots\\dfdfgdfg\\thumb_4_1755857725.png",
+      "coordinates": [
+        1892,
+        78
+      ],
+      "timestamp": "2025-08-22T15:45:25.452501",
+      "notes": ""
+    },
+    {
+      "step_number": 5,
+      "screenshot": "screenshots\\dfdfgdfg\\step_5_1755857731.png",
+      "thumb_path": "screenshots\\dfdfgdfg\\thumb_5_1755857731.png",
+      "coordinates": [
+        1375,
+        1037
+      ],
+      "timestamp": "2025-08-22T15:45:31.072579",
+      "notes": ""
+    }
+  ],
+  "version": "1.0"
+}

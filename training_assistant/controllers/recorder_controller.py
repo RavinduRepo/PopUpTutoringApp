@@ -13,6 +13,8 @@ import mss
 from PIL import Image, ImageDraw
 from tkinter import messagebox
 from views.recorder_mini_view import RecorderMiniView
+import cv2
+import numpy as np
 
 class RecorderController:
     """Manages the recording of user interactions."""
@@ -51,11 +53,9 @@ class RecorderController:
         self.is_paused = False
         self.hotkey_pressed = False
         
-        # Create a dedicated directory for this tutorial's screenshots
         tutorial_screenshot_dir = os.path.join(self.screenshots_dir, self.tutorial_name)
         os.makedirs(tutorial_screenshot_dir, exist_ok=True)
         
-        # Instantiate and create the mini control view
         self.recorder_mini_view = RecorderMiniView(
             parent=self.main_controller,
             toggle_pause_callback=self.toggle_pause,
@@ -84,7 +84,6 @@ class RecorderController:
             messagebox.showinfo("Recording Stopped", "No steps were recorded.")
             return None
         
-        # Save tutorial data to a JSON file
         tutorial_data = {
             "name": self.tutorial_name,
             "created": datetime.now().isoformat(),
@@ -116,10 +115,14 @@ class RecorderController:
         if self.steps:
             removed_step = self.steps.pop()
             try:
-                os.remove(removed_step["screenshot"])
+                # Also remove the full screenshot and the thumbnail
+                screenshot_path = os.path.join(self.screenshots_dir, removed_step["screenshot"])
+                thumb_path = os.path.join(self.screenshots_dir, removed_step["thumb_path"])
+                os.remove(screenshot_path)
+                os.remove(thumb_path)
                 print(f"Undone step {removed_step['step_number']}")
             except FileNotFoundError:
-                print("Screenshot file not found, but step removed from list.")
+                print("Screenshot or thumbnail file not found, but step removed from list.")
         self.main_controller.views['record'].update_step_count(len(self.steps))
 
     def start_listeners(self):
@@ -150,13 +153,11 @@ class RecorderController:
         
     def is_click_on_app_window(self, x, y):
         """Checks if the click coordinates are within any of the app's windows."""
-        # Check main window
         main_window_rect = self.get_window_rect(self.main_controller)
         if main_window_rect[0] <= x <= main_window_rect[2] and \
            main_window_rect[1] <= y <= main_window_rect[3]:
             return True
             
-        # Check mini-view window
         if self.recorder_mini_view and self.recorder_mini_view.window:
             mini_view_rect = self.get_window_rect(self.recorder_mini_view.window)
             if mini_view_rect[0] <= x <= mini_view_rect[2] and \
@@ -170,7 +171,6 @@ class RecorderController:
         if not self.is_recording or self.is_paused or not pressed:
             return
             
-        # If the click is on one of our app windows, ignore it
         if self.is_click_on_app_window(x, y):
             print("Click detected on app window, ignoring.")
             return
@@ -193,7 +193,6 @@ class RecorderController:
                     self.undo_last_step()
                     self.hotkey_pressed = True
         except AttributeError:
-            # Handles special keys like Shift, Alt, etc.
             pass
 
     def on_key_release(self, key):
@@ -205,17 +204,37 @@ class RecorderController:
         try:
             with mss.mss() as sct:
                 screenshot = sct.grab(sct.monitors[0])
-                screenshot_image = Image.frombytes('RGB', screenshot.size, screenshot.bgra, 'raw', 'BGRX')
+                full_image = Image.frombytes('RGB', screenshot.size, screenshot.bgra, 'raw', 'BGRX')
             
             step_num = len(self.steps) + 1
-            screenshot_dir = os.path.join(self.screenshots_dir, self.tutorial_name)
-            screenshot_filename = f"step_{step_num}_{int(time.time())}.png"
-            screenshot_path = os.path.join(screenshot_dir, screenshot_filename)
-            screenshot_image.save(screenshot_path)
+            
+            tutorial_screenshot_dir = os.path.join(self.screenshots_dir, self.tutorial_name)
+            
+            screenshot_filename = f"{self.tutorial_name.replace(' ', '_')}_step_{step_num}_{int(time.time())}.png"
+            thumb_filename = f"{self.tutorial_name.replace(' ', '_')}_thumb_{step_num}_{int(time.time())}.png"
+            
+            screenshot_path = os.path.join(tutorial_screenshot_dir, screenshot_filename)
+            thumb_path = os.path.join(tutorial_screenshot_dir, thumb_filename)
+            
+            full_image.save(screenshot_path)
+
+            thumb_size = 50
+            left = max(0, x - thumb_size // 2)
+            top = max(0, y - thumb_size // 2)
+            right = min(full_image.width, x + thumb_size // 2)
+            bottom = min(full_image.height, y + thumb_size // 2)
+            
+            cropped_image = full_image.crop((left, top, right, bottom))
+            cropped_image.save(thumb_path)
+            
+            # Store the path relative to the screenshots directory
+            relative_screenshot_path = os.path.join(self.tutorial_name, screenshot_filename)
+            relative_thumb_path = os.path.join(self.tutorial_name, thumb_filename)
             
             step = {
                 "step_number": step_num,
-                "screenshot": os.path.relpath(screenshot_path), # Save relative path
+                "screenshot": relative_screenshot_path,
+                "thumb_path": relative_thumb_path,
                 "coordinates": [x, y],
                 "timestamp": datetime.now().isoformat(),
                 "notes": ""
@@ -228,3 +247,4 @@ class RecorderController:
         except Exception as e:
             print(f"Error capturing step: {e}")
             messagebox.showerror("Capture Error", f"An error occurred while capturing a step: {e}")
+            

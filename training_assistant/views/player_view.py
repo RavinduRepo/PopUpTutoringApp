@@ -1,8 +1,10 @@
+# views/player_view.py
+
 import tkinter as tk
 from tkinter import ttk, filedialog
 from views.home_view import BaseView
 
-class PlayView(BaseView):
+class PlayerView(BaseView):
     def __init__(self, parent, controller, model):
         super().__init__(parent, controller, model)
         self.create_widgets()

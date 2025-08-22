@@ -5,7 +5,7 @@ from tkinter import messagebox
 from models.models import AppModel
 from views.home_view import HomeView
 from views.recorder_view import RecordView
-from views.player_view import PlayView
+from views.player_view import PlayerView
 from views.settings_view import SettingsView
 from controllers.recorder_controller import RecorderController
 from controllers.player_controller import PlayerController
@@ -51,7 +51,7 @@ class TrainingAssistantController(tk.Tk):
         view_classes = {
             'home': HomeView,
             'record': RecordView,
-            'play': PlayView,
+            'play': PlayerView,
             'settings': SettingsView
         }
         
