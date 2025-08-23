@@ -39,6 +39,11 @@ class RecorderController:
         self.save_file_path = None # Stores the file path for saving
         self.tutorial_name = ""
         
+        # New variables for click detection
+        self.last_click_time = None
+        self.last_click_coords = None
+        self.double_click_threshold = 0.4 # Time in seconds to distinguish double clicks
+        
         pyautogui.FAILSAFE = False
         
     def start_recording(self):
@@ -46,7 +51,6 @@ class RecorderController:
         if self.is_recording:
             return False
 
-        # GET NAME AND FILE PATH HERE IN THE CONTROLLER
         tutorial_name = self.main_controller.views['record'].tutorial_name_var.get().strip()
         file_path = filedialog.asksaveasfilename(
             defaultextension=".json",
@@ -64,6 +68,8 @@ class RecorderController:
         self.hotkey_pressed = False
         self.save_file_path = file_path
         self.tutorial_name = tutorial_name
+        self.last_click_time = None # Reset state for new recording
+        self.last_click_coords = None # Reset state for new recording
         
         self.recorder_mini_view = RecorderMiniView(
             parent=self.main_controller,
@@ -73,9 +79,10 @@ class RecorderController:
         )
         self.recorder_mini_view.create_window()
         
+        self.main_controller.iconify()
+        
         self.start_listeners()
         
-        # UPDATE UI FROM THE CONTROLLER
         self.main_controller.views['record'].update_ui_state(True)
         self.main_controller.views['record'].update_status(f"Recording '{self.tutorial_name}'... Use F9 to pause/resume, F10 to undo.")
         
@@ -94,6 +101,8 @@ class RecorderController:
         if self.recorder_mini_view:
             self.recorder_mini_view.destroy_window()
 
+        self.main_controller.deiconify()
+        
         if not self.steps:
             messagebox.showinfo("Recording Stopped", "No steps were recorded.")
             self.save_file_path = None
@@ -193,7 +202,18 @@ class RecorderController:
             return
 
         if button == mouse.Button.left:
-            self.capture_step(x, y)
+            current_time = time.time()
+            if self.last_click_time and (current_time - self.last_click_time) < self.double_click_threshold:
+                # This is a double-click
+                self.steps[-1]['action_type'] = "double click"
+                print(f"Updated last step to 'double click'")
+                self.last_click_time = None
+                self.last_click_coords = None
+            else:
+                # This is a single click. Capture immediately.
+                self.capture_step(x, y, "click")
+                self.last_click_time = current_time
+                self.last_click_coords = (x, y)
 
     def on_key_press(self, key):
         """Handles keyboard shortcuts for recording controls."""
@@ -216,23 +236,27 @@ class RecorderController:
         """Resets the hotkey state on key release."""
         self.hotkey_pressed = False
     
-    def capture_step(self, x, y):
+    def capture_step(self, x, y, action_type):
         """Captures a screenshot and saves the step data as a Base64 string."""
         try:
             with mss.mss() as sct:
+                # Capture the full screen first as it's the main reference
                 screenshot = sct.grab(sct.monitors[0])
                 full_image = Image.frombytes('RGB', screenshot.size, screenshot.bgra, 'raw', 'BGRX')
             
-            buffered = io.BytesIO()
-            full_image.save(buffered, format="PNG")
-            img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
-            
+            # Now, generate the thumbnail from the full image for accuracy
             thumb_size = 50
             left = max(0, x - thumb_size // 2)
             top = max(0, y - thumb_size // 2)
             right = min(full_image.width, x + thumb_size // 2)
             bottom = min(full_image.height, y + thumb_size // 2)
             cropped_image = full_image.crop((left, top, right, bottom))
+            
+            # Convert images to Base64
+            buffered = io.BytesIO()
+            full_image.save(buffered, format="PNG")
+            img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
+            
             thumb_buffered = io.BytesIO()
             cropped_image.save(thumb_buffered, format="PNG")
             thumb_str = base64.b64encode(thumb_buffered.getvalue()).decode('utf-8')
@@ -241,6 +265,7 @@ class RecorderController:
             
             step = {
                 "step_number": step_num,
+                "action_type": action_type,
                 "screenshot": img_str,
                 "thumb": thumb_str,
                 "coordinates": [x, y],
@@ -249,7 +274,7 @@ class RecorderController:
             }
             
             self.steps.append(step)
-            print(f"Captured step {step_num} at ({x}, {y})")
+            print(f"Captured step {step_num} at ({x}, {y}) with action: {action_type}")
             self.main_controller.views['record'].update_step_count(step_num)
 
         except Exception as e:

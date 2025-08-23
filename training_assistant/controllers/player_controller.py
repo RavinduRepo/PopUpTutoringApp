@@ -35,6 +35,7 @@ class PlayerController:
         self.waiting_for_click = False
         self.mouse_listener = None
         
+        # Create the mini-view window
         self.player_view = PlayerMiniView(
             parent=self.main_controller,
             next_step_callback=self.next_step,
@@ -87,6 +88,9 @@ class PlayerController:
         
         self.player_view.create_control_window()
         
+        # Minimize the main window
+        self.main_controller.iconify() 
+        
         self.show_step()
         self.main_controller.views['play'].update_buttons_on_playback(True)
         self.main_controller.views['play'].update_status("Playing")
@@ -103,6 +107,9 @@ class PlayerController:
         self.stop_listener()
         self.player_view.destroy_overlay()
         self.player_view.destroy_control_window()
+
+        # Restore the main window
+        self.main_controller.deiconify()
         
         messagebox.showinfo("Tutorial Complete", "Tutorial playback finished.")
         self.main_controller.views['play'].update_buttons_on_playback(False)
@@ -199,6 +206,9 @@ class PlayerController:
         step = self.current_tutorial["steps"][self.current_step_index]
         recorded_coordinates = list(step["coordinates"])
         
+        # Get the action type from the step data
+        action_type = step.get("action_type", "click")
+        
         thumb_data = base64.b64decode(step["thumb"])
         thumb_image = Image.open(io.BytesIO(thumb_data))
         
@@ -224,6 +234,7 @@ class PlayerController:
         step_info = {
             "index": self.current_step_index,
             "total": len(self.current_tutorial['steps']),
+            "action_type": action_type, # Pass the action type to the view
             "notes": step.get("notes"),
             "coordinates": highlight_coordinates,
             "thumb": thumb_image,

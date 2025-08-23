@@ -22,6 +22,7 @@ class PlayerMiniView:
         self.overlay_window = None
         self.play_pause_btn = None
         self.step_label_var = None
+        self.action_label_var = None # New variable for the action type label
         self.thumbnail_label = None
         self.full_screenshot_window = None
         self.full_screenshot_photo = None
@@ -59,6 +60,11 @@ class PlayerMiniView:
         
         control_frame = ttk.Frame(main_frame)
         control_frame.pack(side="left", fill="both", expand=True)
+
+        # New Label for action type
+        self.action_label_var = tk.StringVar()
+        action_label = ttk.Label(control_frame, textvariable=self.action_label_var, font=("Arial", 10, "italic"))
+        action_label.pack(pady=(0, 5))
 
         self.thumbnail_label = ttk.Label(control_frame)
         self.thumbnail_label.pack(pady=(0, 10))
@@ -127,6 +133,10 @@ class PlayerMiniView:
             if step_info.get("notes"):
                 info_text += f"\n{step_info['notes']}"
             self.step_label_var.set(info_text)
+
+            # Update the new action label
+            action_text = step_info.get("action_type", "click").capitalize()
+            self.action_label_var.set(action_text)
 
             if step_info.get("thumb") and self.thumbnail_label:
                 thumb_img = step_info["thumb"]
