@@ -1,5 +1,4 @@
 # controllers/recorder_controller.py
-
 import json
 import os
 import time
@@ -42,9 +41,21 @@ class RecorderController:
         
         pyautogui.FAILSAFE = False
         
-    def start_recording(self, tutorial_name, file_path):
+    def start_recording(self):
         """Starts a new tutorial recording and sets the save path."""
         if self.is_recording:
+            return False
+
+        # GET NAME AND FILE PATH HERE IN THE CONTROLLER
+        tutorial_name = self.main_controller.views['record'].tutorial_name_var.get().strip()
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json")],
+            title="Save Tutorial As",
+            initialfile=tutorial_name
+        )
+        
+        if not file_path:
             return False
 
         self.steps = []
@@ -63,7 +74,12 @@ class RecorderController:
         self.recorder_mini_view.create_window()
         
         self.start_listeners()
-        print(f"Recording started. Saving to {file_path}")
+        
+        # UPDATE UI FROM THE CONTROLLER
+        self.main_controller.views['record'].update_ui_state(True)
+        self.main_controller.views['record'].update_status(f"Recording '{self.tutorial_name}'... Use F9 to pause/resume, F10 to undo.")
+        
+        print(f"Recording started. Saving to {self.save_file_path}")
         return True
 
     def stop_recording(self):
@@ -80,6 +96,10 @@ class RecorderController:
 
         if not self.steps:
             messagebox.showinfo("Recording Stopped", "No steps were recorded.")
+            self.save_file_path = None
+            self.main_controller.views['record'].update_ui_state(False)
+            self.main_controller.views['record'].update_status("Recording stopped.")
+            self.main_controller.views['record'].update_step_count(0)
             return None
         
         tutorial_data = {
@@ -100,6 +120,10 @@ class RecorderController:
             messagebox.showerror("Save Error", f"An error occurred while saving the tutorial: {e}")
         
         self.save_file_path = None
+        self.main_controller.views['record'].update_ui_state(False)
+        self.main_controller.views['record'].update_status("Recording stopped.")
+        self.main_controller.views['record'].update_step_count(0)
+        
         print(f"Tutorial saved to: {self.save_file_path}")
         return self.save_file_path
 
@@ -108,9 +132,8 @@ class RecorderController:
         self.is_paused = not self.is_paused
         status = "paused" if self.is_paused else "resumed"
         print(f"Recording {status}")
-        self.main_controller.views['record'].update_status(status)
-        if self.recorder_mini_view:
-            self.recorder_mini_view.update_pause_button(self.is_paused)
+        self.main_controller.views['record'].update_status(f"Recording {status}.")
+        self.recorder_mini_view.update_pause_button(self.is_paused)
 
     def undo_last_step(self):
         """Removes the last recorded step."""
@@ -200,12 +223,10 @@ class RecorderController:
                 screenshot = sct.grab(sct.monitors[0])
                 full_image = Image.frombytes('RGB', screenshot.size, screenshot.bgra, 'raw', 'BGRX')
             
-            # Save the full image to an in-memory byte buffer
             buffered = io.BytesIO()
             full_image.save(buffered, format="PNG")
             img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
             
-            # Save the thumbnail to an in-memory byte buffer
             thumb_size = 50
             left = max(0, x - thumb_size // 2)
             top = max(0, y - thumb_size // 2)

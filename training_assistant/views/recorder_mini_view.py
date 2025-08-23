@@ -1,5 +1,4 @@
 # views/recorder_mini_view.py
-
 import tkinter as tk
 from tkinter import ttk
 
@@ -9,10 +8,10 @@ class RecorderMiniView:
     def __init__(self, parent, toggle_pause_callback, stop_recording_callback, undo_last_step_callback):
         self.parent = parent
         self.window = None
+        self.pause_btn = None # Make a reference to the pause button
         self.toggle_pause_callback = toggle_pause_callback
         self.stop_recording_callback = stop_recording_callback
         self.undo_last_step_callback = undo_last_step_callback
-        self.is_paused = False
         
         # Variables for dragging the window
         self.drag_x = 0
@@ -29,19 +28,15 @@ class RecorderMiniView:
         self.window.overrideredirect(True) # Remove window decorations
         self.window.resizable(False, False)
         
-        # Main frame for content with a grid layout
         main_frame = ttk.Frame(self.window, padding=5)
         main_frame.pack(fill="both", expand=True)
 
-        # Draggable header frame
         header_frame = ttk.Frame(main_frame, width=30)
         header_frame.pack(side="left", fill="y", padx=(0, 5))
         
-        # Bind dragging events to the header frame
         header_frame.bind("<ButtonPress-1>", self.on_drag_start)
         header_frame.bind("<B1-Motion>", self.on_drag_motion)
         
-        # Control buttons frame
         control_frame = ttk.Frame(main_frame)
         control_frame.pack(side="left", fill="both", expand=True)
 
@@ -49,8 +44,7 @@ class RecorderMiniView:
         self.pause_btn = ttk.Button(
             control_frame,
             text="⏸ Pause",
-            command=self.toggle_pause_callback,
-            style="Record.TButton"
+            command=self.toggle_pause_callback
         )
         self.pause_btn.pack(side=tk.LEFT, padx=2)
 
@@ -70,21 +64,13 @@ class RecorderMiniView:
         )
         self.stop_btn.pack(side=tk.LEFT, padx=2)
 
-        # Position the window in the top-left corner
         self.parent.update_idletasks()
         self.window.geometry(f"+10+10")
         
-        # Style for the header frame to make it distinct
-        style = ttk.Style()
-        style.configure("Header.TFrame", background="#e0e0e0")
-
     def update_pause_button(self, is_paused):
         """Updates the text on the pause button based on state."""
-        self.is_paused = is_paused
-        if self.is_paused:
-            self.pause_btn.config(text="▶ Resume")
-        else:
-            self.pause_btn.config(text="⏸ Pause")
+        if self.pause_btn:
+            self.pause_btn.config(text="▶ Resume" if is_paused else "⏸ Pause")
 
     def destroy_window(self, event=None):
         """Destroys the mini control window."""
@@ -99,7 +85,6 @@ class RecorderMiniView:
 
     def on_drag_motion(self, event):
         """Moves the window as the mouse is dragged."""
-        # Calculate the new position of the window
         x = self.window.winfo_x() + event.x - self.drag_x
         y = self.window.winfo_y() + event.y - self.drag_y
         self.window.geometry(f"+{x}+{y}")

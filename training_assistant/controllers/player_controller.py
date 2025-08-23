@@ -1,5 +1,4 @@
 # controllers/player_controller.py
-
 import json
 import os
 import threading
@@ -11,10 +10,12 @@ from views.player_mini_view import PlayerMiniView
 import cv2
 import numpy as np
 import mss
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import base64
 import io
 import sys
+
+from utils.pdf_utility import convert_to_pdf
 
 def get_base_path():
     """Gets the base path for resources, whether running in PyInstaller or as a script."""
@@ -33,7 +34,6 @@ class PlayerController:
         self.is_paused = False
         self.waiting_for_click = False
         self.mouse_listener = None
-        self.control_window_rect = None
         
         self.player_view = PlayerMiniView(
             parent=self.main_controller,
@@ -43,11 +43,16 @@ class PlayerController:
             end_playback_callback=self.end_playback
         )
         
-    def load_tutorial(self):
-        """Loads a tutorial from a JSON file."""
-        # This method is now obsolete as the view handles the file dialog.
-        # It's kept for legacy but the load_tutorial_by_path is the new entry point
-        pass
+    def load_tutorial_from_dialog(self):
+        """Opens a file dialog and loads a tutorial from the selected file."""
+        file_path = filedialog.askopenfilename(
+            title="Select Tutorial File",
+            filetypes=[("JSON files", "*.json")]
+        )
+        
+        if file_path:
+            if self.load_tutorial_by_path(file_path):
+                self.main_controller.views['play'].update_ui_on_load(self.current_tutorial)
 
     def load_tutorial_by_path(self, file_path):
         """Loads a tutorial from a given JSON file path."""
@@ -66,7 +71,6 @@ class PlayerController:
             self.current_tutorial = None
             return False
 
-
     def start_playback(self, from_start=True):
         """Starts the playback of the loaded tutorial."""
         if not self.current_tutorial:
@@ -82,9 +86,9 @@ class PlayerController:
             self.current_step_index = 0
         
         self.player_view.create_control_window()
-        self.control_window_rect = self.player_view.get_control_window_rect()
         
         self.show_step()
+        self.main_controller.views['play'].update_buttons_on_playback(True)
         self.main_controller.views['play'].update_status("Playing")
         self.start_listener()
 
@@ -101,8 +105,10 @@ class PlayerController:
         self.player_view.destroy_control_window()
         
         messagebox.showinfo("Tutorial Complete", "Tutorial playback finished.")
+        self.main_controller.views['play'].update_buttons_on_playback(False)
         self.main_controller.views['play'].update_status("Idle")
-        self.main_controller.show_play()
+        # Go back to the main view, not the play view
+        self.main_controller.show_home() 
 
     def toggle_pause(self):
         """Toggles the playback pause state."""
@@ -166,21 +172,16 @@ class PlayerController:
             screenshot = sct.grab(sct.monitors[0])
             full_image_pil = Image.frombytes('RGB', screenshot.size, screenshot.bgra, 'raw', 'BGRX')
         
-        # Convert PIL images to OpenCV format (numpy arrays)
         full_image_np = np.array(full_image_pil)
         template_np = np.array(template_image)
 
-        # Convert to grayscale for better matching performance
         full_image_gray = cv2.cvtColor(full_image_np, cv2.COLOR_BGR2GRAY)
         template_gray = cv2.cvtColor(template_np, cv2.COLOR_BGR2GRAY)
 
-        # Perform template matching
         result = cv2.matchTemplate(full_image_gray, template_gray, cv2.TM_CCOEFF_NORMED)
         min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
 
-        # Set a confidence threshold
-        if max_val >= 0.8: # You can adjust this threshold
-            # max_loc is the top-left corner of the best match
+        if max_val >= 0.8:
             return max_loc
         else:
             return None
@@ -198,15 +199,15 @@ class PlayerController:
         step = self.current_tutorial["steps"][self.current_step_index]
         recorded_coordinates = list(step["coordinates"])
         
-        # Decode the thumbnail image from the step data
         thumb_data = base64.b64decode(step["thumb"])
         thumb_image = Image.open(io.BytesIO(thumb_data))
-
+        
+        full_screenshot_base64 = step.get("screenshot")
+        
         detected_coordinates = self._find_match_on_screen(thumb_image)
         
         if detected_coordinates:
             print(f"Match found for step {self.current_step_index + 1} at {detected_coordinates}")
-            # The match returns the top-left corner. We need to find the center for the highlight.
             thumb_w, thumb_h = thumb_image.size
             highlight_coordinates = (
                 detected_coordinates[0] + thumb_w // 2,
@@ -227,7 +228,9 @@ class PlayerController:
             "coordinates": highlight_coordinates,
             "thumb": thumb_image,
             "highlight_color": highlight_color,
-            "highlight_radius": highlight_radius
+            "highlight_radius": highlight_radius,
+            "screenshot_base64": full_screenshot_base64,
+            "recorded_coordinates": recorded_coordinates
         }
         
         self.player_view.update_step_display(step_info)
@@ -257,3 +260,23 @@ class PlayerController:
         if self.mouse_listener and self.mouse_listener.is_alive():
             self.mouse_listener.stop()
             self.mouse_listener = None
+    
+    def convert_to_pdf(self):
+        """Calls the utility function to create a PDF from the current tutorial."""
+        if not self.current_tutorial:
+            messagebox.showerror("Error", "No tutorial has been loaded to convert.")
+            return
+            
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF files", "*.pdf")],
+            title="Save PDF As",
+            initialfile=f"{self.current_tutorial.get('name', 'tutorial')}.pdf"
+        )
+        
+        if file_path:
+            try:
+                convert_to_pdf(self.current_tutorial, file_path)
+                messagebox.showinfo("Success", f"PDF saved successfully to {file_path}")
+            except Exception as e:
+                messagebox.showerror("Conversion Error", f"An error occurred while creating the PDF: {e}")

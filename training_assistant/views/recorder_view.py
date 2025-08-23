@@ -1,5 +1,4 @@
 # views/recorder_view.py
-
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from views.home_view import BaseView
@@ -7,7 +6,6 @@ from views.home_view import BaseView
 class RecordView(BaseView):
     def __init__(self, parent, controller, model):
         super().__init__(parent, controller, model)
-        self.is_recording = False
         self.create_widgets()
         self.bind_shortcuts()
     
@@ -21,8 +19,6 @@ class RecordView(BaseView):
         
         # Tutorial Name Entry
         name_frame = ttk.Frame(main_frame)
-        name_frame.pack(pady=10)
-        ttk.Label(name_frame, text="Tutorial Name:", font=("Arial", 12)).pack(side=tk.LEFT, padx=(0, 10))
         
         self.tutorial_name_var = tk.StringVar()
         self.name_entry = ttk.Entry(name_frame, textvariable=self.tutorial_name_var, width=40, font=("Arial", 12))
@@ -33,11 +29,13 @@ class RecordView(BaseView):
         controls_frame.pack(pady=20)
         
         self.start_btn = ttk.Button(controls_frame, text="🔴 Start Recording",
-                                     command=self.start_recording, width=20, style="Record.TButton")
+                                    command=lambda: self.controller.recorder.start_recording(), # CALL CONTROLLER
+                                    width=20, style="Record.TButton")
         self.start_btn.pack(side=tk.LEFT, padx=5)
         
         self.stop_btn = ttk.Button(controls_frame, text="⏹ Stop Recording",
-                                     command=self.stop_recording, width=20, state="disabled")
+                                    command=lambda: self.controller.recorder.stop_recording(), # CALL CONTROLLER
+                                    width=20, state="disabled")
         self.stop_btn.pack(side=tk.LEFT, padx=5)
         
         # Status Label
@@ -54,49 +52,29 @@ class RecordView(BaseView):
         
         self.create_record_style()
 
-    def start_recording(self):
-        tutorial_name = self.tutorial_name_var.get().strip()
-        if not tutorial_name:
-            messagebox.showerror("Error", "Please enter a tutorial name.")
-            return
-
-        # Open a file dialog to get the save path and filename
-        file_path = filedialog.asksaveasfilename(
-            defaultextension=".json",
-            filetypes=[("JSON files", "*.json")],
-            title="Save Tutorial As",
-            initialfile=tutorial_name
-        )
-        
-        if file_path:
-            if self.controller.recorder.start_recording(tutorial_name, file_path):
-                self.is_recording = True
-                self.name_entry.config(state='disabled')
-                self.start_btn.config(state='disabled')
-                self.stop_btn.config(state='normal')
-                self.update_status(f"Recording '{tutorial_name}'... Use F9 to pause/resume, F10 to undo.")
-            
-    def stop_recording(self):
-        self.controller.recorder.stop_recording()
-        self.is_recording = False
-        self.name_entry.config(state='normal')
-        self.start_btn.config(state='normal')
-        self.stop_btn.config(state='disabled')
-        self.update_status("Recording stopped.")
-        self.update_step_count(0)
-        
     def update_status(self, status):
+        """Updates the status label."""
         self.status_var.set(status)
-        
+    
     def update_step_count(self, count):
+        """Updates the step count label."""
         self.step_count_var.set(f"Steps Recorded: {count}")
     
     def create_record_style(self):
+        """Creates the custom button style."""
         style = ttk.Style()
         style.configure("Record.TButton", background="#dc3545", foreground="#ffffff")
         style.map("Record.TButton", background=[('active', '#c82333')])
     
     def bind_shortcuts(self):
+        """Binds global keyboard shortcuts."""
         shortcuts = self.model.settings["shortcuts"]
         self.controller.bind_all(shortcuts["back"], lambda e: self.controller.show_home())
         self.controller.bind_all(shortcuts["settings"], lambda e: self.controller.show_settings())
+
+    def update_ui_state(self, is_recording):
+        """Updates the state of UI elements based on recording status."""
+        state = 'disabled' if is_recording else 'normal'
+        self.name_entry.config(state=state)
+        self.start_btn.config(state='disabled' if is_recording else 'normal')
+        self.stop_btn.config(state='normal' if is_recording else 'disabled')

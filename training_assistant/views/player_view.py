@@ -1,5 +1,4 @@
 # views/player_view.py
-
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from PIL import Image, ImageTk
@@ -31,7 +30,7 @@ class PlayerView(BaseView):
         load_frame = ttk.Frame(main_frame)
         load_frame.pack(pady=10)
         
-        self.load_btn = ttk.Button(load_frame, text="📂 Load Tutorial File", command=self.load_tutorial_file, width=25)
+        self.load_btn = ttk.Button(load_frame, text="📂 Load Tutorial File", command=self.controller.player.load_tutorial_from_dialog, width=25)
         self.load_btn.pack(side=tk.LEFT, padx=5)
         
         self.status_var = tk.StringVar(value="No tutorial loaded.")
@@ -51,11 +50,15 @@ class PlayerView(BaseView):
         playback_controls = ttk.Frame(main_frame)
         playback_controls.pack(pady=10)
         
-        self.play_btn = ttk.Button(playback_controls, text="▶ Play", command=self.start_playback, state="disabled")
+        self.play_btn = ttk.Button(playback_controls, text="▶ Play", command=self.controller.player.start_playback, state="disabled")
         self.play_btn.pack(side=tk.LEFT, padx=5)
         
-        self.stop_btn = ttk.Button(playback_controls, text="⏹ Stop", command=self.stop_playback, state="disabled")
+        self.stop_btn = ttk.Button(playback_controls, text="⏹ Stop", command=self.controller.player.end_playback, state="disabled")
         self.stop_btn.pack(side=tk.LEFT, padx=5)
+
+        # Convert to PDF button
+        self.convert_btn = ttk.Button(main_frame, text="📄 Convert to PDF", command=self.controller.player.convert_to_pdf, width=25)
+        self.convert_btn.pack(pady=10)
 
         # Back button
         back_btn = ttk.Button(main_frame, text="← Back", command=self.controller.show_home, width=20)
@@ -68,42 +71,24 @@ class PlayerView(BaseView):
         style.configure("Player.TButton", background="#28a745", foreground="#ffffff")
         style.map("Player.TButton", background=[('active', '#218838')])
         
-    def load_tutorial_file(self):
-        """Opens a file dialog to load a tutorial from a JSON file."""
-        # The file dialog no longer needs an initialdir, as tutorials can be anywhere
-        file_path = filedialog.askopenfilename(
-            title="Select Tutorial File",
-            filetypes=[("JSON files", "*.json")]
-        )
-        
-        if file_path:
-            if self.controller.player.load_tutorial_by_path(file_path):
-                self.update_ui_on_load()
-        
-    def start_playback(self):
-        self.controller.player.start_playback()
-        self.play_btn.config(state="disabled")
-        self.stop_btn.config(state="normal")
-        
-    def stop_playback(self):
-        self.controller.player.end_playback()
+    def update_ui_on_load(self, tutorial):
+        """Updates the main view with tutorial information."""
+        self.tutorial_name_var.set(f"Tutorial Name: {tutorial.get('name', 'N/A')}")
+        self.created_date_var.set(f"Created: {tutorial.get('created', 'N/A')}")
+        self.status_var.set(f"Tutorial '{tutorial.get('name', '')}' loaded successfully.")
         self.play_btn.config(state="normal")
         self.stop_btn.config(state="disabled")
 
-    def update_ui_on_load(self):
-        if self.controller.player.current_tutorial:
-            tutorial = self.controller.player.current_tutorial
-            self.tutorial_name_var.set(f"Tutorial Name: {tutorial.get('name', 'N/A')}")
-            self.created_date_var.set(f"Created: {tutorial.get('created', 'N/A')}")
-            self.status_var.set(f"Tutorial '{tutorial.get('name', '')}' loaded successfully.")
-            self.play_btn.config(state="normal")
-            self.stop_btn.config(state="disabled")
-
+    def update_buttons_on_playback(self, is_playing):
+        """Updates the state of the main view's playback buttons."""
+        self.play_btn.config(state="disabled" if is_playing else "normal")
+        self.stop_btn.config(state="normal" if is_playing else "disabled")
+    
     def update_status(self, status):
+        """Updates the status label."""
         self.status_var.set(status)
         
     def bind_shortcuts(self):
         shortcuts = self.model.settings["shortcuts"]
         self.controller.bind_all(shortcuts["back"], lambda e: self.controller.show_home())
         self.controller.bind_all(shortcuts["settings"], lambda e: self.controller.show_settings())
-
