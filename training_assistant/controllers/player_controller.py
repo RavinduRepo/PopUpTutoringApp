@@ -250,15 +250,16 @@ class PlayerController:
         
     def on_click(self, x, y, button, pressed):
         """Callback for the pynput mouse listener."""
-        if not self.waiting_for_click or not pressed or button != mouse.Button.left or self.is_paused:
+        if not self.waiting_for_click or not pressed or self.is_paused:
             return
         
         if self.is_click_on_app_window(x, y):
             print("Click detected on app window, ignoring.")
             return
-        
-        self.waiting_for_click = False
-        self.main_controller.after(100, self.next_step)
+
+        if button == mouse.Button.left or button == mouse.Button.right:
+            self.waiting_for_click = False
+            self.main_controller.after(100, self.next_step)
             
     def start_listener(self):
         """Starts a listener to detect clicks near the target coordinates."""
@@ -277,17 +278,5 @@ class PlayerController:
         if not self.current_tutorial:
             messagebox.showerror("Error", "No tutorial has been loaded to convert.")
             return
-            
-        file_path = filedialog.asksaveasfilename(
-            defaultextension=".pdf",
-            filetypes=[("PDF files", "*.pdf")],
-            title="Save PDF As",
-            initialfile=f"{self.current_tutorial.get('name', 'tutorial')}.pdf"
-        )
-        
-        if file_path:
-            try:
-                convert_to_pdf(self.current_tutorial, file_path)
-                messagebox.showinfo("Success", f"PDF saved successfully to {file_path}")
-            except Exception as e:
-                messagebox.showerror("Conversion Error", f"An error occurred while creating the PDF: {e}")
+
+        convert_to_pdf(self.current_tutorial)

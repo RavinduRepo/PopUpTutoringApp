@@ -214,6 +214,12 @@ class RecorderController:
                 self.capture_step(x, y, "click")
                 self.last_click_time = current_time
                 self.last_click_coords = (x, y)
+        
+        elif button == mouse.Button.right:
+            # Handle right-click as a separate action
+            self.capture_step(x, y, "right click")
+            self.last_click_time = None
+            self.last_click_coords = None
 
     def on_key_press(self, key):
         """Handles keyboard shortcuts for recording controls."""
