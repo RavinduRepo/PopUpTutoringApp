@@ -9,6 +9,7 @@ from views.player_view import PlayerView
 from views.settings_view import SettingsView
 from controllers.recorder_controller import RecorderController
 from controllers.player_controller import PlayerController
+from controllers.event_listener import EventListener
 import os
 import sys
 
@@ -22,9 +23,10 @@ class TrainingAssistantController(tk.Tk):
     def __init__(self):
         super().__init__()
         self.model = AppModel()
+        self.event_listener = EventListener()
         # Initialize controllers with a reference to the main app
-        self.recorder = RecorderController(self)
-        self.player = PlayerController(self)
+        self.recorder = RecorderController(self, self.event_listener)
+        self.player = PlayerController(self, self.event_listener)
         self.setup_window()
         self.create_views()
         self.show_home()
@@ -87,22 +89,6 @@ class TrainingAssistantController(tk.Tk):
     
     def show_settings(self):
         self.show_frame('settings')
-    
-    def start_recording(self, tutorial_name, file_path):
-        """Starts a new recording session with a specified save path."""
-        self.recorder.start_recording(tutorial_name, file_path)
-    
-    def stop_recording(self):
-        """Stops the recording session and saves the tutorial to the predetermined path."""
-        self.recorder.stop_recording()
-    
-    def load_tutorial(self):
-        """Prompts the user to load a tutorial file."""
-        self.player.load_tutorial()
-    
-    def start_playback(self):
-        """Starts playback of the loaded tutorial."""
-        self.player.start_playback()
     
     def quit_app(self):
         self.quit()

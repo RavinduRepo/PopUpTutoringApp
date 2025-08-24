@@ -3,9 +3,7 @@ import json
 import os
 import threading
 import time
-import tkinter as tk
 from tkinter import messagebox, filedialog
-from pynput import mouse
 from views.player_mini_view import PlayerMiniView
 import cv2
 import numpy as np
@@ -26,14 +24,14 @@ def get_base_path():
 class PlayerController:
     """Manages the playback of a recorded tutorial."""
 
-    def __init__(self, main_controller):
+    def __init__(self, main_controller, event_listener):
         self.main_controller = main_controller
+        self.event_listener = event_listener
         self.current_tutorial = None
         self.current_step_index = 0
         self.is_playing = False
         self.is_paused = False
-        self.waiting_for_click = False
-        self.mouse_listener = None
+        self.listener_thread = None
         
         # Create the mini-view window
         self.player_view = PlayerMiniView(
@@ -43,6 +41,13 @@ class PlayerController:
             toggle_pause_callback=self.toggle_pause,
             end_playback_callback=self.end_playback
         )
+
+    def setup_subscriptions(self):
+        """Subscribes to events from the EventListener."""
+        self.event_listener.subscribe_mouse('single_click', self.on_single_click) # dispite of the click type as long as its a single click
+        self.event_listener.subscribe_mouse('double_click', self.on_double_click) # for double click
+        self.event_listener.subscribe_keyboard('hotkey', self.on_hotkey)
+        self.event_listener.subscribe_keyboard('typing', self.on_typing)
         
     def load_tutorial_from_dialog(self):
         """Opens a file dialog and loads a tutorial from the selected file."""
@@ -94,7 +99,10 @@ class PlayerController:
         self.show_step()
         self.main_controller.views['play'].update_buttons_on_playback(True)
         self.main_controller.views['play'].update_status("Playing")
-        self.start_listener()
+        self.setup_subscriptions()
+        if self.listener_thread is None or not self.listener_thread.is_alive():
+            self.listener_thread = threading.Thread(target=self.event_listener.start_listening, daemon=True)
+            self.listener_thread.start()
 
     def end_playback(self):
         """Ends the tutorial playback."""
@@ -103,8 +111,12 @@ class PlayerController:
 
         self.is_playing = False
         self.is_paused = False
-        self.waiting_for_click = False
-        self.stop_listener()
+        
+        if self.listener_thread and self.listener_thread.is_alive():
+            self.event_listener.stop_listening()
+            self.listener_thread.join()
+            self.listener_thread = None
+
         self.player_view.destroy_overlay()
         self.player_view.destroy_control_window()
 
@@ -146,6 +158,50 @@ class PlayerController:
             else:
                 messagebox.showinfo("Start of Tutorial", "You are at the first step.")
     
+    def on_single_click(self, data):
+        """Handles a single click event from the listener."""
+        if self.is_paused or self.current_tutorial["steps"][self.current_step_index]["action_type"].lower() not in ['left_click', 'right_click']:
+            return
+        x, y = data['x'], data['y']
+        
+        if self.is_click_on_app_window(x, y):
+            print("Click detected on app window, ignoring.")
+            return
+
+        self.main_controller.after(100, self.next_step)
+        
+    def on_double_click(self, data):
+        """Handles all double clicks"""
+        if self.is_paused or self.current_tutorial["steps"][self.current_step_index]["action_type"].lower() not in ['double_click']:
+            return
+        x, y = data['x'], data['y']
+        
+        if self.is_click_on_app_window(x, y):
+            print("Click detected on app window, ignoring.")
+            return
+
+        self.main_controller.after(100, self.next_step)
+
+    def on_typing(self, data):
+        """Handles a typing event from the listener."""
+        if self.is_paused or self.current_tutorial["steps"][self.current_step_index]["action_type"].lower() not in ['typing']:
+            return
+        
+        # avanced to next step after small delay
+        self.main_controller.after(100, self.next_step)
+        
+
+    def on_hotkey(self, data):
+        """Handles a hotkey event from the listener.
+        This is where the player would react to specific playback hotkeys,
+        """
+        if self.is_paused or self.current_tutorial["steps"][self.current_step_index]["action_type"].lower() not in ['shortcut']: 
+            # update this to read from sigle variable that stores action type for each step
+            return
+        
+        # avanced to next step after small delay
+        self.main_controller.after(100, self.next_step)
+
     def get_window_rect(self, window):
         """Gets the bounding box of a Tkinter window."""
         window.update_idletasks()
@@ -236,6 +292,8 @@ class PlayerController:
             "total": len(self.current_tutorial['steps']),
             "action_type": action_type, # Pass the action type to the view
             "notes": step.get("notes"),
+            "text": step.get("text", ""), # Pass the typed text
+            "keys": step.get("keys", ""), # Pass the keys
             "coordinates": highlight_coordinates,
             "thumb": thumb_image,
             "highlight_color": highlight_color,
@@ -245,33 +303,12 @@ class PlayerController:
         }
         
         self.player_view.update_step_display(step_info)
-        self.player_view.create_overlay(step_info)
-        self.waiting_for_click = True
         
-    def on_click(self, x, y, button, pressed):
-        """Callback for the pynput mouse listener."""
-        if not self.waiting_for_click or not pressed or self.is_paused:
-            return
-        
-        if self.is_click_on_app_window(x, y):
-            print("Click detected on app window, ignoring.")
-            return
-
-        if button == mouse.Button.left or button == mouse.Button.right:
-            self.waiting_for_click = False
-            self.main_controller.after(100, self.next_step)
-            
-    def start_listener(self):
-        """Starts a listener to detect clicks near the target coordinates."""
-        self.stop_listener()
-        self.mouse_listener = mouse.Listener(on_click=self.on_click)
-        self.mouse_listener.start()
-    
-    def stop_listener(self): 
-        """Stops the pynput listener."""
-        if self.mouse_listener and self.mouse_listener.is_alive():
-            self.mouse_listener.stop()
-            self.mouse_listener = None
+        # Only create the overlay for click-based actions
+        if action_type.lower() in ['left_click', 'right_click', 'double_click']:
+            self.player_view.create_overlay(step_info)
+        else:
+            self.player_view.destroy_overlay()
     
     def convert_to_pdf(self):
         """Calls the utility function to create a PDF from the current tutorial."""

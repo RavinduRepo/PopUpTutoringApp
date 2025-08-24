@@ -25,27 +25,45 @@ def get_base_path():
     return os.getcwd()
 
 class RecorderController:
-    """Manages the recording of user interactions."""
 
-    def __init__(self, main_controller):
+    def __init__(self, main_controller, event_listener):
         self.main_controller = main_controller
+        self.event_listener = event_listener
+        self.listener_thread = None # keeps the event listener's new thread of running the listener
         self.is_recording = False
         self.is_paused = False
         self.steps = []
-        self.mouse_listener = None
-        self.keyboard_listener = None
-        self.hotkey_pressed = False
         self.recorder_mini_view = None
         self.save_file_path = None # Stores the file path for saving
         self.tutorial_name = ""
         
-        # New variables for click detection
-        self.last_click_time = None
-        self.last_click_coords = None
-        self.double_click_threshold = 0.4 # Time in seconds to distinguish double clicks
-        
         pyautogui.FAILSAFE = False
-        
+        self.ignored_shortcuts = set()
+        self.load_shortcuts()
+
+    def load_shortcuts(self):
+        """Loads shortcut key combinations from settings.json to be ignored during recording."""
+        settings_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'settings.json')
+        try:
+            with open(settings_path, 'r') as f:
+                settings = json.load(f)
+            shortcuts = settings.get('shortcuts', {})
+            # Normalize to a set of key combos (as strings)
+            self.ignored_shortcuts = set(shortcuts.values())
+            # print the ignored shortcuts for debugging
+            print(f"Ignored shortcuts: {self.ignored_shortcuts}")
+        except Exception as e:
+            print(f"Could not load shortcuts from settings.json: {e}")
+            self.ignored_shortcuts = set()
+    """Manages the recording of user interactions."""
+
+    def setup_subscriptions(self):
+        """Subscribes to events from the EventListener."""
+        self.event_listener.subscribe_mouse('single_click', self.on_click) # dispite of the click type as long as its a single click
+        self.event_listener.subscribe_mouse('double_click', self.on_click) # for double click
+        self.event_listener.subscribe_keyboard('hotkey', self.on_hotkey)
+        self.event_listener.subscribe_keyboard('typing', self.on_typing)
+    
     def start_recording(self):
         """Starts a new tutorial recording and sets the save path."""
         if self.is_recording:
@@ -65,11 +83,8 @@ class RecorderController:
         self.steps = []
         self.is_recording = True
         self.is_paused = False
-        self.hotkey_pressed = False
         self.save_file_path = file_path
         self.tutorial_name = tutorial_name
-        self.last_click_time = None # Reset state for new recording
-        self.last_click_coords = None # Reset state for new recording
         
         self.recorder_mini_view = RecorderMiniView(
             parent=self.main_controller,
@@ -80,8 +95,13 @@ class RecorderController:
         self.recorder_mini_view.create_window()
         
         self.main_controller.iconify()
-        
-        self.start_listeners()
+
+        if self.listener_thread is None or not self.listener_thread.is_alive():
+            # Subscribing is now done here, right before the listener starts
+            self.setup_subscriptions()
+            
+            self.listener_thread = threading.Thread(target=self.event_listener.start_listening, daemon=True)
+            self.listener_thread.start()
         
         self.main_controller.views['record'].update_ui_state(True)
         self.main_controller.views['record'].update_status(f"Recording '{self.tutorial_name}'... Use F9 to pause/resume, F10 to undo.")
@@ -96,8 +116,12 @@ class RecorderController:
         
         self.is_recording = False
         self.is_paused = False
-        self.stop_listeners()
-        
+
+        if self.listener_thread and self.listener_thread.is_alive():
+            self.event_listener.stop_listening()
+            self.listener_thread.join()
+            self.listener_thread = None
+
         if self.recorder_mini_view:
             self.recorder_mini_view.destroy_window()
 
@@ -115,7 +139,7 @@ class RecorderController:
             "name": self.tutorial_name,
             "created": datetime.now().isoformat(),
             "steps": self.steps,
-            "version": "2.0"
+            "version": "v1.0.3"
         }
         
         try:
@@ -127,13 +151,12 @@ class RecorderController:
                 messagebox.showerror("Save Error", "No save path was specified.")
         except Exception as e:
             messagebox.showerror("Save Error", f"An error occurred while saving the tutorial: {e}")
-        
+        print(f"Tutorial saved to: {self.save_file_path}")
         self.save_file_path = None
         self.main_controller.views['record'].update_ui_state(False)
         self.main_controller.views['record'].update_status("Recording stopped.")
         self.main_controller.views['record'].update_step_count(0)
         
-        print(f"Tutorial saved to: {self.save_file_path}")
         return self.save_file_path
 
     def toggle_pause(self):
@@ -147,26 +170,55 @@ class RecorderController:
     def undo_last_step(self):
         """Removes the last recorded step."""
         if self.steps:
-            self.steps.pop()
+            last_step = self.steps.pop()
             print("Undone last step.")
+            print(last_step)
         self.main_controller.views['record'].update_step_count(len(self.steps))
+        return last_step
 
-    def start_listeners(self):
-        """Starts background listeners for mouse and keyboard events."""
-        self.mouse_listener = mouse.Listener(on_click=self.on_mouse_click)
-        self.keyboard_listener = keyboard.Listener(on_press=self.on_key_press, on_release=self.on_key_release)
+    def on_click(self, data):
+        """Handles a single click event from the listener."""
+        if not self.is_recording or self.is_paused:
+            return
         
-        self.mouse_listener.start()
-        self.keyboard_listener.start()
-    
-    def stop_listeners(self):
-        """Stops the mouse and keyboard listeners."""
-        if self.mouse_listener and self.mouse_listener.is_alive():
-            self.mouse_listener.stop()
-            self.mouse_listener = None
-        if self.keyboard_listener and self.keyboard_listener.is_alive():
-            self.keyboard_listener.stop()
-            self.keyboard_listener = None
+        x, y , type = data['x'], data['y'], data['button']
+        
+        if self.is_click_on_app_window(x, y):
+            print("Click detected on app window, ignoring.")
+            return
+        if type == "double_click":
+            self.undo_last_step() # erasing the single click recorded when double clicks first click
+
+        self.capture_step(x, y, type)
+
+    def on_typing(self, data):
+        """Handles a typing event from the listener."""
+        if not self.is_recording or self.is_paused:
+            return
+        text = data['message']
+        print(f"Recorded typing: {data['message']}")
+        self.capture_step(0, 0, action_type="typing", text=text) # x, y cordinations are 0 since they do not matter
+
+    def on_hotkey(self, data):
+        """Handles a hotkey event from the listener. Saves pressed keys and ignores shortcuts from settings.json."""
+        if not self.is_recording:
+            return
+        key_combo = data.get('key')
+        # If the key combo is in the ignored shortcuts, do not record it
+        if self.is_my_shortcut(key_combo):
+            print(f"Ignored shortcut: {key_combo}")
+            return
+        self.capture_step(0, 0, action_type="shortcut", keys=key_combo)
+
+    def is_my_shortcut(self, key_combo):
+        """Returns True if the given key_combo is in the ignored shortcuts.
+            and executes the associated action.
+        """
+        if key_combo == 'f9':
+            self.toggle_pause()
+        elif key_combo == 'f10':
+            self.undo_last_step()
+        return key_combo in self.ignored_shortcuts
     
     def get_window_rect(self, window):
         """Gets the bounding box of a Tkinter window."""
@@ -192,57 +244,7 @@ class RecorderController:
                 
         return False
 
-    def on_mouse_click(self, x, y, button, pressed):
-        """Handles mouse clicks and captures a step."""
-        if not self.is_recording or self.is_paused or not pressed:
-            return
-            
-        if self.is_click_on_app_window(x, y):
-            print("Click detected on app window, ignoring.")
-            return
-
-        if button == mouse.Button.left:
-            current_time = time.time()
-            if self.last_click_time and (current_time - self.last_click_time) < self.double_click_threshold:
-                # This is a double-click
-                self.steps[-1]['action_type'] = "double click"
-                print(f"Updated last step to 'double click'")
-                self.last_click_time = None
-                self.last_click_coords = None
-            else:
-                # This is a single click. Capture immediately.
-                self.capture_step(x, y, "click")
-                self.last_click_time = current_time
-                self.last_click_coords = (x, y)
-        
-        elif button == mouse.Button.right:
-            # Handle right-click as a separate action
-            self.capture_step(x, y, "right click")
-            self.last_click_time = None
-            self.last_click_coords = None
-
-    def on_key_press(self, key):
-        """Handles keyboard shortcuts for recording controls."""
-        if not self.is_recording:
-            return
-            
-        try:
-            if key == keyboard.Key.f9:
-                if not self.hotkey_pressed:
-                    self.toggle_pause()
-                    self.hotkey_pressed = True
-            elif key == keyboard.Key.f10:
-                if not self.hotkey_pressed:
-                    self.undo_last_step()
-                    self.hotkey_pressed = True
-        except AttributeError:
-            pass
-
-    def on_key_release(self, key):
-        """Resets the hotkey state on key release."""
-        self.hotkey_pressed = False
-    
-    def capture_step(self, x, y, action_type):
+    def capture_step(self, x, y, action_type='left_click', text='', keys='', notes=''):
         """Captures a screenshot and saves the step data as a Base64 string."""
         try:
             with mss.mss() as sct:
@@ -251,7 +253,8 @@ class RecorderController:
                 full_image = Image.frombytes('RGB', screenshot.size, screenshot.bgra, 'raw', 'BGRX')
             
             # Now, generate the thumbnail from the full image for accuracy
-            thumb_size = 50
+            # size dynamic based on screen size
+            thumb_size = max(48, min(100, full_image.width // 10, full_image.height // 10))
             left = max(0, x - thumb_size // 2)
             top = max(0, y - thumb_size // 2)
             right = min(full_image.width, x + thumb_size // 2)
@@ -274,13 +277,15 @@ class RecorderController:
                 "action_type": action_type,
                 "screenshot": img_str,
                 "thumb": thumb_str,
+                "text": text, # typed text in the step
+                "keys": keys, # hot keys
                 "coordinates": [x, y],
                 "timestamp": datetime.now().isoformat(),
-                "notes": ""
+                "notes": notes # additional notes typed
             }
             
             self.steps.append(step)
-            print(f"Captured step {step_num} at ({x}, {y}) with action: {action_type}")
+            print(f"Captured step {step_num} at ({x}, {y}) with action: {action_type}, text: {text}, keys: {keys}")
             self.main_controller.views['record'].update_step_count(step_num)
 
         except Exception as e:

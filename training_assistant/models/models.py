@@ -9,14 +9,14 @@ class AppModel:
     
     def load_settings(self):
         default_settings = {
-            "theme": "light",
+            "theme": "dark",
             "shortcuts": {
-                "record": "<Control-r>",
-                "play": "<Control-p>",
-                "settings": "<Control-comma>",
-                "back": "<Escape>"
+                "record": "ctrl+r",
+                "play": "ctrl+p",
+                "settings": "ctrl+,",
+                "back": "esc"
+            }   
             }
-        }
         
         if os.path.exists(self.settings_file):
             try:
