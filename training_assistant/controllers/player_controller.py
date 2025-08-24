@@ -70,7 +70,7 @@ class PlayerController:
             with open(file_path, 'r') as f:
                 self.current_tutorial = json.load(f)
             self.current_step_index = 0
-            messagebox.showinfo("Tutorial Loaded", f"Tutorial '{self.current_tutorial['name']}' loaded successfully.")
+            # messagebox.showinfo("Tutorial Loaded", f"Tutorial '{self.current_tutorial['name']}' loaded successfully.")
             return True
         except Exception as e:
             messagebox.showerror("Load Error", f"Failed to load tutorial from '{file_path}': {e}")

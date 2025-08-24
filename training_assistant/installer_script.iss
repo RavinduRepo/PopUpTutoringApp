@@ -1,7 +1,7 @@
 [Setup]
 ; Basic installation settings
 AppName=Training Assistant
-AppVersion=1.0
+AppVersion=1.2.0
 ; The default installation directory name
 DefaultDirName={autopf}\Training Assistant
 DefaultGroupName=Training Assistant
