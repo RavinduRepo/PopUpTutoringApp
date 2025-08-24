@@ -139,7 +139,7 @@ class RecorderController:
             "name": self.tutorial_name,
             "created": datetime.now().isoformat(),
             "steps": self.steps,
-            "version": "v1.0.3"
+            "version": "v1.2.0"
         }
         
         try:
