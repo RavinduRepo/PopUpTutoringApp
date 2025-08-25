@@ -96,7 +96,7 @@ class PlayerMiniView(MiniViewBase):
     def destroy_control_window(self):
         self.destroy_window()
 
-    def update_step_display(self, step_info):
+    def update_step_display(self, step_info, allowed_size=8):
         if self.window:
             self.set_current_step_data(step_info)
             
@@ -110,7 +110,11 @@ class PlayerMiniView(MiniViewBase):
 
             action_detail_text = ""
             if action_type.lower() == "typing":
-                action_detail_text = f"Text: \"{step_info.get('text', '')}\""
+                text = step_info.get('text', '')
+                display_text = text[:allowed_size]
+                if len(text) > allowed_size:
+                    display_text += "..."
+                action_detail_text = f'Text: "{display_text}"\n(press: ctrl+v)'
             elif action_type.lower() == "shortcut":
                 action_detail_text = f"Keys: {step_info.get('keys', '')}"
             self.action_detail_var.set(action_detail_text)

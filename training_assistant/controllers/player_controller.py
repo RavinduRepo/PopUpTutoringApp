@@ -13,16 +13,19 @@ import base64
 import io
 import sys
 import logging
+# Import the pyperclip library
+import pyperclip 
+
 logger = logging.getLogger(__name__)
 
-from .base_controller import BaseController # New import
+from .base_controller import BaseController
 from utils.pdf_utility import convert_to_pdf
 
-class PlayerController(BaseController): # Inherit from BaseController
+class PlayerController(BaseController):
     """Manages the playback of a recorded tutorial."""
 
     def __init__(self, main_controller, event_listener):
-        super().__init__(main_controller, event_listener) # Initialize the parent class
+        super().__init__(main_controller, event_listener)
         self.current_tutorial = None
         self.current_step_index = 0
         self.is_playing = False
@@ -177,12 +180,14 @@ class PlayerController(BaseController): # Inherit from BaseController
         
     def on_hotkey(self, data):
         """Handles a hotkey event from the listener.
-        This is where the player would react to specific playback hotkeys,
+        This is where the player would react to specific playback hotkeys.
         """
-        if self.is_paused or self.current_tutorial["steps"][self.current_step_index]["action_type"].lower() not in ['shortcut']: 
-            return
-        
-        self.main_controller.after(100, self.next_step)
+        current_step = self.current_tutorial["steps"][self.current_step_index]
+        action_type = current_step["action_type"].lower()
+        key = data.get('key', '').lower()
+
+        if not self.is_paused and (action_type == 'shortcut' or (action_type == 'typing' and key == 'ctrl+v')):
+            self.main_controller.after(100, self.next_step)
 
     def is_click_on_app_window(self, x, y):
         """Checks if the click coordinates are within any of the app's windows."""
@@ -278,7 +283,20 @@ class PlayerController(BaseController): # Inherit from BaseController
             self.player_mini_view.create_overlay(step_info)
         else:
             self.player_mini_view.destroy_overlay()
+            if action_type.lower() == 'typing':
+                # Get the text to be typed from the current step
+                text_to_copy = self.current_tutorial["steps"][self.current_step_index].get("text", "")
+                # Call the copy function
+                self._copy_text_to_clipboard(text_to_copy)
     
+    def _copy_text_to_clipboard(self, text):
+        """Copies the given text to the system clipboard."""
+        try:
+            pyperclip.copy(text)
+            logger.info(f"Copied text to clipboard: '{text}'")
+        except Exception as e:
+            logger.error(f"Failed to copy text to clipboard: {e}")
+
     def convert_to_pdf(self):
         """Calls the utility function to create a PDF from the current tutorial."""
         if not self.current_tutorial:
@@ -286,3 +304,4 @@ class PlayerController(BaseController): # Inherit from BaseController
             return
 
         convert_to_pdf(self.current_tutorial)
+        
