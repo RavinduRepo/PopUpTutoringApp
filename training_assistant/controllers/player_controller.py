@@ -12,6 +12,15 @@ from PIL import Image, ImageDraw, ImageFont
 import base64
 import io
 import sys
+import logging
+logger = logging.getLogger(__name__)
+
+
+# # In development, see everything
+# logging.basicConfig(level=logging.DEBUG) 
+
+# For production, only show warnings and errors
+logging.basicConfig(level=logging.WARNING)
 
 from utils.pdf_utility import convert_to_pdf
 
@@ -34,7 +43,7 @@ class PlayerController:
         self.listener_thread = None
         
         # Create the mini-view window
-        self.player_view = PlayerMiniView(
+        self.player_mini_view = PlayerMiniView(
             parent=self.main_controller,
             next_step_callback=self.next_step,
             previous_step_callback=self.previous_step,
@@ -91,7 +100,7 @@ class PlayerController:
         if from_start:
             self.current_step_index = 0
         
-        self.player_view.create_control_window()
+        self.player_mini_view.create_control_window()
         
         # Minimize the main window
         self.main_controller.iconify() 
@@ -117,8 +126,8 @@ class PlayerController:
             self.listener_thread.join()
             self.listener_thread = None
 
-        self.player_view.destroy_overlay()
-        self.player_view.destroy_control_window()
+        self.player_mini_view.destroy_overlay()
+        self.player_mini_view.destroy_control_window()
 
         # Restore the main window
         self.main_controller.deiconify()
@@ -133,18 +142,18 @@ class PlayerController:
         """Toggles the playback pause state."""
         self.is_paused = not self.is_paused
         if self.is_paused:
-            self.player_view.update_play_pause_button("▶ Resume")
-            self.player_view.destroy_overlay()
+            self.player_mini_view.update_play_pause_button("▶ Resume")
+            self.player_mini_view.destroy_overlay()
             self.main_controller.views['play'].update_status("Playback Paused")
         else:
-            self.player_view.update_play_pause_button("⏸ Pause")
+            self.player_mini_view.update_play_pause_button("⏸ Pause")
             self.show_step()
             self.main_controller.views['play'].update_status("Playing")
     
     def next_step(self):
         """Moves to the next step in the tutorial."""
         if self.is_playing and not self.is_paused:
-            self.player_view.destroy_overlay()
+            self.player_mini_view.destroy_overlay()
             self.current_step_index += 1
             threading.Timer(0.3, self.show_step).start()
 
@@ -152,7 +161,7 @@ class PlayerController:
         """Moves to the previous step."""
         if self.is_playing and not self.is_paused:
             if self.current_step_index > 0:
-                self.player_view.destroy_overlay()
+                self.player_mini_view.destroy_overlay()
                 self.current_step_index -= 1
                 self.show_step()
             else:
@@ -165,7 +174,7 @@ class PlayerController:
         x, y = data['x'], data['y']
         
         if self.is_click_on_app_window(x, y):
-            print("Click detected on app window, ignoring.")
+            logger.info("Click detected on app window, ignoring.")
             return
 
         self.main_controller.after(100, self.next_step)
@@ -177,7 +186,7 @@ class PlayerController:
         x, y = data['x'], data['y']
         
         if self.is_click_on_app_window(x, y):
-            print("Click detected on app window, ignoring.")
+            logger.info("Click detected on app window, ignoring.")
             return
 
         self.main_controller.after(100, self.next_step)
@@ -218,8 +227,8 @@ class PlayerController:
            main_window_rect[1] <= y <= main_window_rect[3]:
             return True
             
-        if self.player_view and self.player_view.control_window:
-            mini_view_rect = self.get_window_rect(self.player_view.control_window)
+        if self.player_mini_view and self.player_mini_view.window:
+            mini_view_rect = self.get_window_rect(self.player_mini_view.window)
             if mini_view_rect[0] <= x <= mini_view_rect[2] and \
                mini_view_rect[1] <= y <= mini_view_rect[3]:
                 return True
@@ -273,7 +282,7 @@ class PlayerController:
         detected_coordinates = self._find_match_on_screen(thumb_image)
         
         if detected_coordinates:
-            print(f"Match found for step {self.current_step_index + 1} at {detected_coordinates}")
+            logger.info(f"Match found for step {self.current_step_index + 1} at {detected_coordinates}")
             thumb_w, thumb_h = thumb_image.size
             highlight_coordinates = (
                 detected_coordinates[0] + thumb_w // 2,
@@ -282,7 +291,7 @@ class PlayerController:
             highlight_color = "green"
             highlight_radius = max(thumb_w, thumb_h) // 2 + 10
         else:
-            print(f"No match found for step {self.current_step_index + 1}. Using recorded coordinates.")
+            logger.info(f"No match found for step {self.current_step_index + 1}. Using recorded coordinates.")
             highlight_coordinates = recorded_coordinates
             highlight_color = "red"
             highlight_radius = 20
@@ -298,17 +307,17 @@ class PlayerController:
             "thumb": thumb_image,
             "highlight_color": highlight_color,
             "highlight_radius": highlight_radius,
-            "screenshot_base64": full_screenshot_base64,
-            "recorded_coordinates": recorded_coordinates
+            "screenshot": full_screenshot_base64,
+            "coordinates": recorded_coordinates
         }
         
-        self.player_view.update_step_display(step_info)
+        self.player_mini_view.update_step_display(step_info)
         
         # Only create the overlay for click-based actions
         if action_type.lower() in ['left_click', 'right_click', 'double_click']:
-            self.player_view.create_overlay(step_info)
+            self.player_mini_view.create_overlay(step_info)
         else:
-            self.player_view.destroy_overlay()
+            self.player_mini_view.destroy_overlay()
     
     def convert_to_pdf(self):
         """Calls the utility function to create a PDF from the current tutorial."""

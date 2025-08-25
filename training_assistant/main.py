@@ -12,6 +12,17 @@ from controllers.player_controller import PlayerController
 from controllers.event_listener import EventListener
 import os
 import sys
+import logging
+logger = logging.getLogger(__name__)
+
+
+# In development, see everything
+# logging.basicConfig(level=logging.DEBUG) 
+
+# # For production, only show warnings and errors
+# logging.basicConfig(level=logging.WARNING)
+# Configure the logger 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def get_base_path():
     """Gets the base path for resources, whether running in PyInstaller or as a script."""
@@ -43,7 +54,7 @@ class TrainingAssistantController(tk.Tk):
         if os.path.exists(icon_path):
             self.iconbitmap(icon_path)
         else:
-            print(f"Icon file not found at: {icon_path}")
+            logger.info(f"Icon file not found at: {icon_path}")
             
         self.create_menu()
         

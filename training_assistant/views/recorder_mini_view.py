@@ -1,64 +1,76 @@
 # views/recorder_mini_view.py
 import tkinter as tk
 from tkinter import ttk
+from PIL import ImageTk
+import os
+import sys
+import logging
+from .mini_view_base import MiniViewBase
 
-class RecorderMiniView:
+logger = logging.getLogger(__name__)
+
+# To disable logging for production, you only need to change the level
+# in your main application file's basicConfig.
+
+def get_base_path():
+    """Gets the base path for resources, whether running in PyInstaller or as a script."""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, 'data')
+    return os.getcwd()
+
+class RecorderMiniView(MiniViewBase):
     """A minimal, always-on-top control window for the recorder."""
 
     def __init__(self, parent, toggle_pause_callback, stop_recording_callback, undo_last_step_callback):
-        self.parent = parent
-        self.window = None
-        self.pause_btn = None # Make a reference to the pause button
+        super().__init__(parent)
+        self.pause_btn = None
         self.toggle_pause_callback = toggle_pause_callback
         self.stop_recording_callback = stop_recording_callback
         self.undo_last_step_callback = undo_last_step_callback
         
-        # Variables for dragging the window
-        self.drag_x = 0
-        self.drag_y = 0
+        self.step_label_var = None
+        self.thumbnail_label = None
+        self.thumbnail_photo = None
+        self.info_btn = None
 
     def create_window(self):
         """Creates and displays the mini control window."""
-        if self.window:
-            self.destroy_window()
-
-        self.window = tk.Toplevel(self.parent)
-        self.window.title("Recorder Controls")
-        self.window.attributes('-topmost', True)
-        self.window.overrideredirect(True) # Remove window decorations
-        self.window.resizable(False, False)
-        
-        main_frame = ttk.Frame(self.window, padding=5)
-        main_frame.pack(fill="both", expand=True)
-
-        header_frame = ttk.Frame(main_frame, width=30)
-        header_frame.pack(side="left", fill="y", padx=(0, 5))
-        
-        header_frame.bind("<ButtonPress-1>", self.on_drag_start)
-        header_frame.bind("<B1-Motion>", self.on_drag_motion)
+        main_frame, header_frame = self.create_base_window("Recorder Controls")
         
         control_frame = ttk.Frame(main_frame)
         control_frame.pack(side="left", fill="both", expand=True)
+        
+        self.step_label_var = tk.StringVar()
+        step_label = ttk.Label(control_frame, textvariable=self.step_label_var, font=("Arial", 12, "bold"))
+        step_label.pack(pady=(0, 10))
+        
+        self.thumbnail_label = ttk.Label(control_frame)
+        self.thumbnail_label.pack(pady=(0, 10))
 
-        # Pause/Resume button
+        button_frame = ttk.Frame(control_frame)
+        button_frame.pack()
+
+        self.info_btn = ttk.Button(button_frame, text="ℹ️", width=3)
+        self.info_btn.pack(side=tk.LEFT, padx=5)
+        self.info_btn.bind("<ButtonPress-1>", self.on_info_press)
+        self.info_btn.bind("<ButtonRelease-1>", self.on_info_release)
+
         self.pause_btn = ttk.Button(
-            control_frame,
+            button_frame,
             text="⏸ Pause",
             command=self.toggle_pause_callback
         )
         self.pause_btn.pack(side=tk.LEFT, padx=2)
 
-        # Undo button
         self.undo_btn = ttk.Button(
-            control_frame,
+            button_frame,
             text="← Back",
             command=self.undo_last_step_callback
         )
         self.undo_btn.pack(side=tk.LEFT, padx=2)
 
-        # Stop button
         self.stop_btn = ttk.Button(
-            control_frame,
+            button_frame,
             text="⏹ Stop",
             command=self.stop_recording_callback
         )
@@ -72,19 +84,13 @@ class RecorderMiniView:
         if self.pause_btn:
             self.pause_btn.config(text="▶ Resume" if is_paused else "⏸ Pause")
 
-    def destroy_window(self, event=None):
-        """Destroys the mini control window."""
-        if self.window:
-            self.window.destroy()
-            self.window = None
-
-    def on_drag_start(self, event):
-        """Records the initial position of the mouse for dragging."""
-        self.drag_x = event.x
-        self.drag_y = event.y
-
-    def on_drag_motion(self, event):
-        """Moves the window as the mouse is dragged."""
-        x = self.window.winfo_x() + event.x - self.drag_x
-        y = self.window.winfo_y() + event.y - self.drag_y
-        self.window.geometry(f"+{x}+{y}")
+    def update_view(self, step_count, is_paused, thumbnail_image=None):
+        """Updates the step count, pause button text, and thumbnail image."""
+        self.update_pause_button(is_paused)
+        self.step_label_var.set(f"Step: {step_count}")
+        
+        if thumbnail_image:
+            self.thumbnail_photo = ImageTk.PhotoImage(thumbnail_image)
+            self.thumbnail_label.config(image=self.thumbnail_photo)
+        else:
+            self.thumbnail_label.config(image='')
