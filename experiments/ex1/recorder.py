@@ -1,10 +1,22 @@
 # recorder.py
+import sys
 from event_listener import EventListener
 
 class Recorder:
     def __init__(self, event_listener: EventListener):
         self.listener = event_listener
         self.setup_subscriptions()
+
+    def run(self):
+        """Starts the event listener and handles the program's lifecycle."""
+        print("Recorder initialized. Waiting for events...")
+        try:
+            self.listener.start_listening()
+        except KeyboardInterrupt:
+            print("\nProgram interrupted by user (Ctrl+C).")
+        finally:
+            self.listener.stop_listening() # Ensures listeners are stopped on exit
+            sys.exit(0)
 
     def setup_subscriptions(self):
         """Subscribes the recorder's methods to events from the listener."""
@@ -27,4 +39,4 @@ class Recorder:
         print(f"[RECORDER] Typed message: '{data['message']}'")
 
     def record_hotkey(self, data):
-        print(f"[RECORDER] Hotkey pressed: {data['key']}")
+        print(f"[RECORDER] Hotkey pressed: '{data['combination']}'")
