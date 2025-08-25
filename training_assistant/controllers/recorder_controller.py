@@ -2,7 +2,6 @@
 import json
 import os
 import time
-import threading
 from datetime import datetime
 from pathlib import Path
 import pynput
@@ -20,30 +19,17 @@ import sys
 import logging
 logger = logging.getLogger(__name__)
 
-
-# # In development, see everything
-# logging.basicConfig(level=logging.DEBUG) 
-
-# For production, only show warnings and errors
-logging.basicConfig(level=logging.WARNING)
-
-def get_base_path():
-    """Gets the base path for resources, whether running in PyInstaller or as a script."""
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, 'data')
-    return os.getcwd()
-
-class RecorderController:
+from .base_controller import BaseController # New import
+# from utils.image_utility import get_base_path # You can move this utility function here
+class RecorderController(BaseController): # Inherit from BaseController
 
     def __init__(self, main_controller, event_listener):
-        self.main_controller = main_controller
-        self.event_listener = event_listener
-        self.listener_thread = None # keeps the event listener's new thread of running the listener
+        super().__init__(main_controller, event_listener) # Initialize the parent class
         self.is_recording = False
         self.is_paused = False
         self.steps = []
         self.recorder_mini_view = None
-        self.save_file_path = None # Stores the file path for saving
+        self.save_file_path = None
         self.tutorial_name = ""
         self.current_step_data = None
         
@@ -66,8 +52,8 @@ class RecorderController:
 
     def setup_subscriptions(self):
         """Subscribes to events from the EventListener."""
-        self.event_listener.subscribe_mouse('single_click', self.on_click) # dispite of the click type as long as its a single click
-        self.event_listener.subscribe_mouse('double_click', self.on_click) # for double click
+        self.event_listener.subscribe_mouse('single_click', self.on_click)
+        self.event_listener.subscribe_mouse('double_click', self.on_click)
         self.event_listener.subscribe_keyboard('hotkey', self.on_hotkey)
         self.event_listener.subscribe_keyboard('typing', self.on_typing)
     
@@ -105,11 +91,8 @@ class RecorderController:
         
         self.main_controller.iconify()
 
-        if self.listener_thread is None or not self.listener_thread.is_alive():
-            self.setup_subscriptions()
-            
-            self.listener_thread = threading.Thread(target=self.event_listener.start_listening, daemon=True)
-            self.listener_thread.start()
+        self.setup_subscriptions()
+        self.start_event_listener() # Use the method from the base class
         
         self.main_controller.views['record'].update_ui_state(True)
         self.main_controller.views['record'].update_status(f"Recording '{self.tutorial_name}'... Use F9 to pause/resume, F10 to undo.")
@@ -125,10 +108,7 @@ class RecorderController:
         self.is_recording = False
         self.is_paused = False
 
-        if self.listener_thread and self.listener_thread.is_alive():
-            self.event_listener.stop_listening()
-            self.listener_thread.join()
-            self.listener_thread = None
+        self.stop_event_listener() # Use the method from the base class
 
         if self.recorder_mini_view:
             self.recorder_mini_view.destroy_window()
@@ -241,20 +221,9 @@ class RecorderController:
             self.undo_last_step()
         return key_combo in self.ignored_shortcuts
     
-    def get_window_rect(self, window):
-        """Gets the bounding box of a Tkinter window."""
-        window.update_idletasks()
-        x = window.winfo_rootx()
-        y = window.winfo_rooty()
-        width = window.winfo_width()
-        height = window.winfo_height()
-        return (x, y, x + width, y + height)
-        
     def is_click_on_app_window(self, x, y):
         """Checks if the click coordinates are within any of the app's windows."""
-        main_window_rect = self.get_window_rect(self.main_controller)
-        if main_window_rect[0] <= x <= main_window_rect[2] and \
-           main_window_rect[1] <= y <= main_window_rect[3]:
+        if super().is_click_on_app_window(x, y): # Call the parent method first
             return True
             
         if self.recorder_mini_view and self.recorder_mini_view.window:

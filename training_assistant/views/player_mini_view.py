@@ -11,9 +11,6 @@ from .mini_view_base import MiniViewBase
 
 logger = logging.getLogger(__name__)
 
-# To disable logging for production, you only need to change the level
-# in your main application file's basicConfig.
-
 def get_base_path():
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, 'data')

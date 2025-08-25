@@ -19,9 +19,6 @@ class MiniViewBase:
         self.full_screenshot_window = None
         self.full_screenshot_photo = None
         self.current_step_data = None
-        
-        # Logging configuration is typically done in the main file
-        # But we'll keep the logger here for each module
 
     def create_base_window(self, title):
         """Creates the base window with common properties."""

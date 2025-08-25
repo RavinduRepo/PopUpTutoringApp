@@ -15,32 +15,18 @@ import sys
 import logging
 logger = logging.getLogger(__name__)
 
-
-# # In development, see everything
-# logging.basicConfig(level=logging.DEBUG) 
-
-# For production, only show warnings and errors
-logging.basicConfig(level=logging.WARNING)
-
+from .base_controller import BaseController # New import
 from utils.pdf_utility import convert_to_pdf
 
-def get_base_path():
-    """Gets the base path for resources, whether running in PyInstaller or as a script."""
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, 'data')
-    return os.getcwd()
-
-class PlayerController:
+class PlayerController(BaseController): # Inherit from BaseController
     """Manages the playback of a recorded tutorial."""
 
     def __init__(self, main_controller, event_listener):
-        self.main_controller = main_controller
-        self.event_listener = event_listener
+        super().__init__(main_controller, event_listener) # Initialize the parent class
         self.current_tutorial = None
         self.current_step_index = 0
         self.is_playing = False
         self.is_paused = False
-        self.listener_thread = None
         
         # Create the mini-view window
         self.player_mini_view = PlayerMiniView(
@@ -53,8 +39,8 @@ class PlayerController:
 
     def setup_subscriptions(self):
         """Subscribes to events from the EventListener."""
-        self.event_listener.subscribe_mouse('single_click', self.on_single_click) # dispite of the click type as long as its a single click
-        self.event_listener.subscribe_mouse('double_click', self.on_double_click) # for double click
+        self.event_listener.subscribe_mouse('single_click', self.on_single_click)
+        self.event_listener.subscribe_mouse('double_click', self.on_double_click)
         self.event_listener.subscribe_keyboard('hotkey', self.on_hotkey)
         self.event_listener.subscribe_keyboard('typing', self.on_typing)
         
@@ -79,7 +65,6 @@ class PlayerController:
             with open(file_path, 'r') as f:
                 self.current_tutorial = json.load(f)
             self.current_step_index = 0
-            # messagebox.showinfo("Tutorial Loaded", f"Tutorial '{self.current_tutorial['name']}' loaded successfully.")
             return True
         except Exception as e:
             messagebox.showerror("Load Error", f"Failed to load tutorial from '{file_path}': {e}")
@@ -102,16 +87,13 @@ class PlayerController:
         
         self.player_mini_view.create_control_window()
         
-        # Minimize the main window
         self.main_controller.iconify() 
         
         self.show_step()
         self.main_controller.views['play'].update_buttons_on_playback(True)
         self.main_controller.views['play'].update_status("Playing")
         self.setup_subscriptions()
-        if self.listener_thread is None or not self.listener_thread.is_alive():
-            self.listener_thread = threading.Thread(target=self.event_listener.start_listening, daemon=True)
-            self.listener_thread.start()
+        self.start_event_listener() # Use the method from the base class
 
     def end_playback(self):
         """Ends the tutorial playback."""
@@ -121,21 +103,16 @@ class PlayerController:
         self.is_playing = False
         self.is_paused = False
         
-        if self.listener_thread and self.listener_thread.is_alive():
-            self.event_listener.stop_listening()
-            self.listener_thread.join()
-            self.listener_thread = None
+        self.stop_event_listener() # Use the method from the base class
 
         self.player_mini_view.destroy_overlay()
         self.player_mini_view.destroy_control_window()
 
-        # Restore the main window
         self.main_controller.deiconify()
         
         messagebox.showinfo("Tutorial Complete", "Tutorial playback finished.")
         self.main_controller.views['play'].update_buttons_on_playback(False)
         self.main_controller.views['play'].update_status("Idle")
-        # Go back to the main view, not the play view
         self.main_controller.show_home() 
 
     def toggle_pause(self):
@@ -196,35 +173,20 @@ class PlayerController:
         if self.is_paused or self.current_tutorial["steps"][self.current_step_index]["action_type"].lower() not in ['typing']:
             return
         
-        # avanced to next step after small delay
         self.main_controller.after(100, self.next_step)
         
-
     def on_hotkey(self, data):
         """Handles a hotkey event from the listener.
         This is where the player would react to specific playback hotkeys,
         """
         if self.is_paused or self.current_tutorial["steps"][self.current_step_index]["action_type"].lower() not in ['shortcut']: 
-            # update this to read from sigle variable that stores action type for each step
             return
         
-        # avanced to next step after small delay
         self.main_controller.after(100, self.next_step)
 
-    def get_window_rect(self, window):
-        """Gets the bounding box of a Tkinter window."""
-        window.update_idletasks()
-        x = window.winfo_rootx()
-        y = window.winfo_rooty()
-        width = window.winfo_width()
-        height = window.winfo_height()
-        return (x, y, x + width, y + height)
-        
     def is_click_on_app_window(self, x, y):
         """Checks if the click coordinates are within any of the app's windows."""
-        main_window_rect = self.get_window_rect(self.main_controller)
-        if main_window_rect[0] <= x <= main_window_rect[2] and \
-           main_window_rect[1] <= y <= main_window_rect[3]:
+        if super().is_click_on_app_window(x, y): # Call the parent method first
             return True
             
         if self.player_mini_view and self.player_mini_view.window:
@@ -271,7 +233,6 @@ class PlayerController:
         step = self.current_tutorial["steps"][self.current_step_index]
         recorded_coordinates = list(step["coordinates"])
         
-        # Get the action type from the step data
         action_type = step.get("action_type", "click")
         
         thumb_data = base64.b64decode(step["thumb"])
@@ -313,7 +274,6 @@ class PlayerController:
         
         self.player_mini_view.update_step_display(step_info)
         
-        # Only create the overlay for click-based actions
         if action_type.lower() in ['left_click', 'right_click', 'double_click']:
             self.player_mini_view.create_overlay(step_info)
         else:

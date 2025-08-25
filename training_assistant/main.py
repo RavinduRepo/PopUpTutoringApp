@@ -9,7 +9,7 @@ from views.player_view import PlayerView
 from views.settings_view import SettingsView
 from controllers.recorder_controller import RecorderController
 from controllers.player_controller import PlayerController
-from controllers.event_listener import EventListener
+from utils.event_listener import EventListener
 import os
 import sys
 import logging
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # # For production, only show warnings and errors
 # logging.basicConfig(level=logging.WARNING)
 # Configure the logger 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def get_base_path():
     """Gets the base path for resources, whether running in PyInstaller or as a script."""

@@ -2,10 +2,12 @@
 import time
 from pynput import mouse, keyboard
 import threading
+import logging
+logger = logging.getLogger(__name__)
 
 class EventListener:
     def __init__(self):
-        print("initialized event listener")
+        logger.info("initialized event listener")
         self.mouse_listeners = {}
         self.keyboard_listeners = {}
         self.typed_characters = ""
@@ -360,10 +362,10 @@ class EventListener:
 
     def start_listening(self):
         if self.is_running:
-            print("Listener is already running.")
+            logger.info("Listener is already running.")
             return
 
-        print("Listening for events... Press 'Esc' to quit.")
+        logger.info("Listening for events... Press 'Esc' to quit.")
         
         self.mouse_listener_thread = mouse.Listener(on_click=self._on_click)
         self.keyboard_listener_thread = keyboard.Listener(on_press=self._on_press, on_release=self._on_release)
@@ -375,13 +377,13 @@ class EventListener:
         try:
             self.keyboard_listener_thread.join()
         except Exception as e:
-            print(f"An error occurred: {e}")
+            logger.error(f"An error occurred: {e}")
         finally:
             self.stop_listening()
 
     def stop_listening(self):
         if self.is_running:
-            print("\nStopping listeners...")
+            logger.info("\nStopping listeners...")
             
             # Flush any remaining typed characters
             if self.typed_characters:
@@ -400,20 +402,20 @@ class EventListener:
             self.keyboard_listeners.clear()
             
             self.is_running = False
-            print("Listeners stopped and all subscribers cleared.")
+            logger.info("Listeners stopped and all subscribers cleared.")
 
 
 
 # Example usage and testing
 if __name__ == "__main__":
     def on_hotkey(data):
-        print(f"Hotkey detected: {data['combination']} (keys: {data['keys']})")
+        logger.info(f"Hotkey detected: {data['combination']} (keys: {data['keys']})")
     
     def on_typing(data):
-        print(f"Typing detected: '{data['message']}'")
+        logger.info(f"Typing detected: '{data['message']}'")
     
     def on_click(data):
-        print(f"Click at ({data['x']}, {data['y']}) with {data['button']}")
+        logger.info(f"Click at ({data['x']}, {data['y']}) with {data['button']}")
     
     listener = EventListener()
     listener.subscribe_keyboard('hotkey', on_hotkey)
