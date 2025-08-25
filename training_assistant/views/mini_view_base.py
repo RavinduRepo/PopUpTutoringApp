@@ -56,8 +56,8 @@ class MiniViewBase:
     def on_info_press(self, event):
         """Shows the full screenshot when the info button is pressed."""
         if self.current_step_data:
-            full_screenshot_base64 = self.current_step_data.get("screenshot_base64") or self.current_step_data.get("screenshot")
-            coordinates = self.current_step_data.get("recorded_coordinates") or self.current_step_data.get("coordinates")
+            full_screenshot_base64 = self.current_step_data.get("screenshot") or self.current_step_data.get("screenshot_base64")
+            coordinates = self.current_step_data.get("coordinates") or self.current_step_data.get("recorded_coordinates")
             
             if full_screenshot_base64 and coordinates:
                 full_data = base64.b64decode(full_screenshot_base64)

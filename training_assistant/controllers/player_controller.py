@@ -184,11 +184,24 @@ class PlayerController(BaseController):
         """
         current_step = self.current_tutorial["steps"][self.current_step_index]
         action_type = current_step["action_type"].lower()
-        key = data.get('key', '').lower()
-
-        if not self.is_paused and (action_type == 'shortcut' or (action_type == 'typing' and key == 'ctrl+v')):
+        key_combo = data.get('key')
+        if self.is_my_shortcut(key_combo):
+            logger.info(f"Ignored shortcut: {key_combo}")
+            return
+        if not self.is_paused and (action_type == 'shortcut' or (action_type == 'typing' and key_combo == 'ctrl+v')):
             self.main_controller.after(100, self.next_step)
-
+    # --------------------------------------------------------------------------------------------------------------
+    def is_my_shortcut(self, key_combo):# change this functuon based on available shortcuutws from key combos 
+        """Returns True if the given key_combo is in the ignored shortcuts.
+            and executes the associated action.
+        """
+        if key_combo == 'f9':
+            self.toggle_pause()
+        elif key_combo == 'f10':
+            self.undo_last_step()
+        return key_combo in self.ignored_shortcuts
+    # --------------------------------------------------------------------------------------------------------------
+    
     def is_click_on_app_window(self, x, y):
         """Checks if the click coordinates are within any of the app's windows."""
         if super().is_click_on_app_window(x, y): # Call the parent method first
@@ -254,14 +267,15 @@ class PlayerController(BaseController):
                 detected_coordinates[0] + thumb_w // 2,
                 detected_coordinates[1] + thumb_h // 2
             )
-            highlight_color = "green"
+            highlight_color = "red"
             highlight_radius = max(thumb_w, thumb_h) // 2 + 10
         else:
             logger.info(f"No match found for step {self.current_step_index + 1}. Using recorded coordinates.")
             highlight_coordinates = recorded_coordinates
-            highlight_color = "red"
+            highlight_color = "gray"
             highlight_radius = 20
 
+        logger.debug(f"\nusing cordinates are: {detected_coordinates}\n")
         step_info = {
             "index": self.current_step_index,
             "total": len(self.current_tutorial['steps']),
@@ -269,12 +283,12 @@ class PlayerController(BaseController):
             "notes": step.get("notes"),
             "text": step.get("text", ""), # Pass the typed text
             "keys": step.get("keys", ""), # Pass the keys
-            "coordinates": highlight_coordinates,
+            "highlight_coordinates": highlight_coordinates, # coordinates to circle on play time
             "thumb": thumb_image,
             "highlight_color": highlight_color,
             "highlight_radius": highlight_radius,
             "screenshot": full_screenshot_base64,
-            "coordinates": recorded_coordinates
+            "recorded_coordinates": recorded_coordinates # coordinates recorded on record time
         }
         
         self.player_mini_view.update_step_display(step_info)

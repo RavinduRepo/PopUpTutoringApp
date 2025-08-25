@@ -1,6 +1,10 @@
 # controllers/base_controller.py
+import json
 import threading
 import tkinter as tk
+import os
+import logging
+logger = logging.getLogger(__name__)
 
 class BaseController:
     """A base class for controllers to manage common functionality."""
@@ -9,6 +13,8 @@ class BaseController:
         self.main_controller = main_controller
         self.event_listener = event_listener
         self.listener_thread = None
+        self.ignored_shortcuts = set()
+        self.load_shortcuts()
 
     def start_event_listener(self):
         """Starts the event listener in a new thread."""
@@ -22,6 +28,19 @@ class BaseController:
             self.event_listener.stop_listening()
             self.listener_thread.join()
             self.listener_thread = None
+
+    def load_shortcuts(self):
+        """Loads shortcut key combinations from settings.json to be ignored during recording."""
+        settings_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'settings.json')
+        try:
+            with open(settings_path, 'r') as f:
+                settings = json.load(f)
+            shortcuts = settings.get('shortcuts', {})
+            self.ignored_shortcuts = set(shortcuts.values())
+            logger.info(f"Ignored shortcuts: {self.ignored_shortcuts}")
+        except Exception as e:
+            logger.warning(f"Could not load shortcuts from settings.json: {e}")
+            self.ignored_shortcuts = set()
 
     def get_window_rect(self, window):
         """Gets the bounding box of a Tkinter window."""

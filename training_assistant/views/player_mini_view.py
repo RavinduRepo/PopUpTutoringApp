@@ -140,9 +140,9 @@ class PlayerMiniView(MiniViewBase):
         canvas = tk.Canvas(self.overlay_window, bg='SystemButtonFace', highlightthickness=0)
         canvas.pack(fill="both", expand=True)
 
-        x, y = step_info["coordinates"]
+        x, y = step_info["highlight_coordinates"] # new detected coordinates to highlight(or fall backed to recorded)
         radius = 40
-        canvas.create_oval(x - radius, y - radius, x + radius, y + radius, outline='red', width=5, fill='')
+        canvas.create_oval(x - radius, y - radius, x + radius, y + radius, outline=step_info['highlight_color'], width=5, fill='')
         
     def destroy_overlay(self, event=None):
         if self.overlay_window:

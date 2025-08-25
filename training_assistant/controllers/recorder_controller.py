@@ -34,21 +34,6 @@ class RecorderController(BaseController): # Inherit from BaseController
         self.current_step_data = None
         
         pyautogui.FAILSAFE = False
-        self.ignored_shortcuts = set()
-        self.load_shortcuts()
-
-    def load_shortcuts(self):
-        """Loads shortcut key combinations from settings.json to be ignored during recording."""
-        settings_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'settings.json')
-        try:
-            with open(settings_path, 'r') as f:
-                settings = json.load(f)
-            shortcuts = settings.get('shortcuts', {})
-            self.ignored_shortcuts = set(shortcuts.values())
-            logger.info(f"Ignored shortcuts: {self.ignored_shortcuts}")
-        except Exception as e:
-            logger.warning(f"Could not load shortcuts from settings.json: {e}")
-            self.ignored_shortcuts = set()
 
     def setup_subscriptions(self):
         """Subscribes to events from the EventListener."""
@@ -128,7 +113,7 @@ class RecorderController(BaseController): # Inherit from BaseController
             "name": self.tutorial_name,
             "created": datetime.now().isoformat(),
             "steps": self.steps,
-            "version": "v1.2.0"
+            "version": "v1.2.1"
         }
         
         try:
@@ -210,8 +195,8 @@ class RecorderController(BaseController): # Inherit from BaseController
             logger.info(f"Ignored shortcut: {key_combo}")
             return
         self.capture_step(0, 0, action_type="shortcut", keys=key_combo)
-
-    def is_my_shortcut(self, key_combo):
+    # --------------------------------------------------------------------------------------------------------------
+    def is_my_shortcut(self, key_combo): # Update update this function
         """Returns True if the given key_combo is in the ignored shortcuts.
             and executes the associated action.
         """
@@ -220,6 +205,7 @@ class RecorderController(BaseController): # Inherit from BaseController
         elif key_combo == 'f10':
             self.undo_last_step()
         return key_combo in self.ignored_shortcuts
+    # --------------------------------------------------------------------------------------------------------------
     
     def is_click_on_app_window(self, x, y):
         """Checks if the click coordinates are within any of the app's windows."""
@@ -281,3 +267,7 @@ class RecorderController(BaseController): # Inherit from BaseController
         except Exception as e:
             logger.warning(f"Error capturing step: {e}")
             messagebox.showerror("Capture Error", f"An error occurred while capturing a step: {e}")
+
+
+
+

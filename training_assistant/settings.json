@@ -4,6 +4,7 @@
     "record": "ctrl+r",
     "play": "ctrl+p",
     "settings": "ctrl+,",
-    "back": "esc"
+    "back": "esc",
+    "testing": "someting"
   }
 }
