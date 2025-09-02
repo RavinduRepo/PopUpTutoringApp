@@ -1,4 +1,3 @@
-import json
 import os
 import io
 import base64
@@ -9,9 +8,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as Re
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch, mm
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER
 import sys
-from datetime import datetime
 
 def get_base_path():
     """Gets the base path for resources, whether running in PyInstaller or as a script."""
@@ -61,8 +59,8 @@ def convert_to_pdf(tutorial_data):
 
     try:
         pdf = SimpleDocTemplate(file_path, pagesize=pagesizes.letter,
-                                leftMargin=25*mm, rightMargin=25*mm,
-                                topMargin=25*mm, bottomMargin=25*mm)
+                                leftMargin=10*mm, rightMargin=10*mm,
+                                topMargin=10*mm, bottomMargin=10*mm)
         story = []
         styles = getSampleStyleSheet()
 
@@ -181,8 +179,8 @@ def convert_to_pdf(tutorial_data):
                     full_image.save(full_img_stream, format="PNG")
                     full_img_stream.seek(0)
                     
-                    max_width = 6.5 * inch
-                    max_height = 4.5 * inch
+                    max_width = 7.5 * inch  
+                    max_height = 6 * inch  
                     image_width, image_height = full_image.size
                     
                     width_scale = max_width / image_width

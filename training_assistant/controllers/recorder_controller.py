@@ -1,21 +1,14 @@
 # controllers/recorder_controller.py
 import json
 import os
-import time
 from datetime import datetime
-from pathlib import Path
-import pynput
-from pynput import mouse, keyboard
 import pyautogui
 import mss
-from PIL import Image, ImageDraw
+from PIL import Image
 from tkinter import messagebox, filedialog
 from views.recorder_mini_view import RecorderMiniView
-import cv2
-import numpy as np
 import base64
 import io
-import sys
 import logging
 logger = logging.getLogger(__name__)
 

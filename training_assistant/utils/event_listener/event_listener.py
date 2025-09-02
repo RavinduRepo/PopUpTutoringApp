@@ -3,7 +3,6 @@
 Main EventListener class that maintains the same API as the original
 while using the modular components internally.
 """
-import time
 import logging
 from .mouse_listener import MouseEventListener
 from .keyboard_listener import KeyboardEventListener

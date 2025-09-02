@@ -1,7 +1,7 @@
 # main.py
 
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import PhotoImage
 from models.models import AppModel
 from views.home_view import HomeView
 from views.recorder_view import RecordView
@@ -13,6 +13,7 @@ from utils.event_listener.event_listener import EventListener
 import os
 import sys
 import logging
+
 logger = logging.getLogger(__name__)
 
 # Configure the logger 
@@ -42,14 +43,30 @@ class TrainingAssistantController(tk.Tk):
         self.geometry("900x600")
         self.resizable(True, True)
         self.minsize(800, 500)
-        
-        # Get the path to the icon file
-        icon_path = os.path.join(get_base_path(), 'assets', 'myIcon.ico')
-        if os.path.exists(icon_path):
-            self.iconbitmap(icon_path)
+
+        base_path = get_base_path()
+        if sys.platform.startswith("win"):  
+            # Use .ico on Windows
+            icon_path = os.path.join(base_path, 'assets', 'myIcon.ico')
+            if os.path.exists(icon_path):
+                try:
+                    self.iconbitmap(icon_path)
+                except Exception as e:
+                    logger.warning(f"Could not load .ico icon: {e}")
+            else:
+                logger.info(f"Icon file not found at: {icon_path}")
         else:
-            logger.info(f"Icon file not found at: {icon_path}")
-            
+            # Use .png on Linux/macOS
+            icon_path = os.path.join(base_path, 'assets', 'myIcon.png')
+            if os.path.exists(icon_path):
+                try:
+                    img = PhotoImage(file=icon_path)
+                    self.iconphoto(False, img)
+                except Exception as e:
+                    logger.warning(f"Could not load .png icon: {e}")
+            else:
+                logger.info(f"Icon file not found at: {icon_path}")
+
         self.create_menu()
         
         self.container = tk.Frame(self)

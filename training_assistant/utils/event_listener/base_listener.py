@@ -1,6 +1,4 @@
 # base_listener.py
-import time
-import threading
 import logging
 from abc import ABC, abstractmethod
 

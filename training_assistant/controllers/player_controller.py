@@ -1,17 +1,14 @@
 # controllers/player_controller.py
 import json
-import os
 import threading
-import time
 from tkinter import messagebox, filedialog
 from views.player_mini_view import PlayerMiniView
 import cv2
 import numpy as np
 import mss
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 import base64
 import io
-import sys
 import logging
 # Import the pyperclip library
 import pyperclip 

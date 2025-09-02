@@ -1,7 +1,6 @@
 # controllers/base_controller.py
 import json
 import threading
-import tkinter as tk
 import os
 import logging
 logger = logging.getLogger(__name__)
