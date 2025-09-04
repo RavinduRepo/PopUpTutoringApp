@@ -4,6 +4,7 @@ import threading
 import os
 import logging
 import time
+import sys
 logger = logging.getLogger(__name__)
 
 class BaseController:
@@ -39,11 +40,19 @@ class BaseController:
         Loads shortcut key combinations from settings.json.
         If the file does not exist, it creates a new one with default values.
         """
-        settings_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'settings.json')
+        # Detect PyInstaller bundle and set settings_path accordingly
+        if getattr(sys, 'frozen', False):
+            # Running in a PyInstaller bundle
+            base_path = os.path.dirname(sys.executable)
+        else:
+            # Running from source
+            base_path = os.path.dirname(os.path.abspath(__file__))
+            base_path = os.path.abspath(os.path.join(base_path, '..'))
+        settings_path = os.path.join(base_path, 'settings.json')
         
         # Define default settings
         default_settings = {
-            "theme": "dark",
+            "theme": "light",
             "shortcuts": {
                 "player": {
                     "info": "ctrl+e",

@@ -51,4 +51,6 @@ class SettingsController(BaseController):
         self.main_controller.model.update_setting("theme", new_theme)
         self.main_controller.model.update_setting("shortcuts", new_shortcuts)
         self.main_controller.update_theme()
+        self.main_controller.player.load_shortcuts()
+        self.main_controller.recorder.load_shortcuts()
         messagebox.showinfo("Settings", "Settings applied successfully!")

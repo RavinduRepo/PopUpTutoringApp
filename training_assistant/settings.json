@@ -2,17 +2,17 @@
   "theme": "dark",
   "shortcuts": {
     "player": {
-      "info": "ctrl+e",
-      "back": "left",
-      "pause": "down",
-      "next": "right",
-      "stop": "up"
+      "info": "alt+e",
+      "back": "alt+a",
+      "pause": "alt+s",
+      "next": "alt+d",
+      "stop": "alt+q"
     },
     "recorder": {
-      "info": "ctrl+e",
-      "pause": "down",
-      "back": "left",
-      "stop": "up"
+      "info": "shift+Q",
+      "pause": "alt+s",
+      "back": "alt+a",
+      "stop": "alt+q"
     }
   }
 }
