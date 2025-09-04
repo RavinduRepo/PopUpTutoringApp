@@ -1,10 +1,18 @@
 {
   "theme": "dark",
   "shortcuts": {
-    "record": "ctrl+r",
-    "play": "ctrl+p",
-    "settings": "ctrl+,",
-    "back": "esc",
-    "testing": "someting"
+    "player": {
+      "info": "ctrl+e",
+      "back": "left",
+      "pause": "down",
+      "next": "right",
+      "stop": "up"
+    },
+    "recorder": {
+      "info": "ctrl+e",
+      "pause": "down",
+      "back": "left",
+      "stop": "up"
+    }
   }
 }

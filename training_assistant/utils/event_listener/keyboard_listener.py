@@ -50,7 +50,7 @@ class KeyboardEventListener(BaseEventListener):
         return False
     
     def _on_press(self, key):
-        # Stop listening on 'Esc' press (but also treat it as a hotkey)
+        # treat it as a hotkey
         if key == keyboard.Key.esc:
             if 'esc' not in self.key_processor.sent_hotkeys:
                 self._notify('hotkey', {
@@ -59,7 +59,6 @@ class KeyboardEventListener(BaseEventListener):
                     'keys': [self.key_processor.get_key_string(key)]
                 })
                 self.key_processor.sent_hotkeys.add('esc')
-            return False
 
         # Handle control characters first
         if self._handle_control_character(key):

@@ -106,7 +106,7 @@ class RecorderController(BaseController): # Inherit from BaseController
             "name": self.tutorial_name,
             "created": datetime.now().isoformat(),
             "steps": self.steps,
-            "version": "v1.2.1"
+            "version": "v1.2.2"
         }
         
         try:
@@ -185,21 +185,40 @@ class RecorderController(BaseController): # Inherit from BaseController
             return
         key_combo = data.get('key')
         if self.is_my_shortcut(key_combo):
-            logger.info(f"Ignored shortcut: {key_combo}")
+            logger.info(f"Ignored and executed shortcut: {key_combo}")
             return
+        
         self.capture_step(0, 0, action_type="shortcut", keys=key_combo)
-    # --------------------------------------------------------------------------------------------------------------
-    def is_my_shortcut(self, key_combo): # Update update this function
-        """Returns True if the given key_combo is in the ignored shortcuts.
-            and executes the associated action.
-        """
-        if key_combo == 'f9':
-            self.toggle_pause()
-        elif key_combo == 'f10':
-            self.undo_last_step()
-        return key_combo in self.ignored_shortcuts
-    # --------------------------------------------------------------------------------------------------------------
     
+    def is_my_shortcut(self, key_combo):
+        """
+        Returns True if the given key_combo is a recorder shortcut and executes the associated action.
+        """
+        recorder_actions = {
+            'info': self.on_info_shortcut, # Use a dedicated method for the info shortcut
+            'pause': self.toggle_pause,
+            'back': self.undo_last_step,
+            'stop': self.stop_recording
+        }
+        
+        if key_combo in self.ignored_shortcuts_recorder:
+            action = self.ignored_shortcuts_recorder[key_combo]
+            action_func = recorder_actions.get(action)
+            if action_func:
+                action_func()
+                logger.info(f"Executed recorder shortcut: {action}")
+                return True
+        
+        return False
+    
+    def on_info_shortcut(self):
+        """Handles the 'info' shortcut by toggling the info display."""
+        if self.recorder_mini_view:
+            if not self.recorder_mini_view.full_screenshot_window:
+                self.recorder_mini_view.on_info_press(None) # Call the press method
+            else:
+                self.recorder_mini_view.on_info_release(None) # Call the release method
+
     def is_click_on_app_window(self, x, y):
         """Checks if the click coordinates are within any of the app's windows."""
         if super().is_click_on_app_window(x, y): # Call the parent method first

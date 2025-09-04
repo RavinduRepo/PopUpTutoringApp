@@ -16,7 +16,6 @@ class PlayerView(BaseView):
     def __init__(self, parent, controller, model):
         super().__init__(parent, controller, model)
         self.create_widgets()
-        self.bind_shortcuts()
     
     def create_widgets(self):
         # Main container frame
@@ -87,8 +86,3 @@ class PlayerView(BaseView):
     def update_status(self, status):
         """Updates the status label."""
         self.status_var.set(status)
-        
-    def bind_shortcuts(self):
-        shortcuts = self.model.settings["shortcuts"]
-        self.controller.bind_all(shortcuts["back"], lambda e: self.controller.show_home())
-        self.controller.bind_all(shortcuts["settings"], lambda e: self.controller.show_settings())

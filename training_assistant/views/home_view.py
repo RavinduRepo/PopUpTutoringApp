@@ -1,3 +1,4 @@
+# views/home_view.py
 import tkinter as tk
 from tkinter import ttk
 
@@ -43,7 +44,6 @@ class HomeView(BaseView):
     def __init__(self, parent, controller, model):
         super().__init__(parent, controller, model)
         self.create_widgets()
-        self.bind_shortcuts()
     
     def create_widgets(self):
         ttk.Label(self, text="Interactive Training Assistant",
@@ -83,12 +83,6 @@ class HomeView(BaseView):
         else:
             style.configure("Accent.TButton", background="#007acc", foreground="#ffffff")
             style.map("Accent.TButton", background=[('active', '#005a9e')])
-    
-    def bind_shortcuts(self):
-        shortcuts = self.model.settings["shortcuts"]
-        self.controller.bind_all(shortcuts["record"], lambda e: self.controller.show_record())
-        self.controller.bind_all(shortcuts["play"], lambda e: self.controller.show_play())
-        self.controller.bind_all(shortcuts["settings"], lambda e: self.controller.show_settings())
     
     def update_theme(self):
         super().update_theme()

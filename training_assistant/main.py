@@ -1,5 +1,4 @@
 # main.py
-
 import tkinter as tk
 from tkinter import PhotoImage
 from models.models import AppModel
@@ -9,6 +8,7 @@ from views.player_view import PlayerView
 from views.settings_view import SettingsView
 from controllers.recorder_controller import RecorderController
 from controllers.player_controller import PlayerController
+from controllers.settings_controller import SettingsController
 from utils.event_listener.event_listener import EventListener
 import os
 import sys
@@ -17,7 +17,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Configure the logger 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def get_base_path():
     """Gets the base path for resources, whether running in PyInstaller or as a script."""
@@ -33,6 +33,7 @@ class TrainingAssistantController(tk.Tk):
         # Initialize controllers with a reference to the main app
         self.recorder = RecorderController(self, self.event_listener)
         self.player = PlayerController(self, self.event_listener)
+        self.settings_controller = SettingsController(self, self.event_listener)
         self.setup_window()
         self.create_views()
         self.show_home()
@@ -93,11 +94,25 @@ class TrainingAssistantController(tk.Tk):
         }
         
         for name, view_class in view_classes.items():
-            view = view_class(self.container, self, self.model)
+            # Pass the correct controller to each view
+            if name == 'settings':
+                view = view_class(self.container, self, self.model, self.settings_controller)
+                self.settings_controller.set_view(view) # Set the view reference in the controller
+            else:
+                view = view_class(self.container, self, self.model)
             view.grid(row=0, column=0, sticky="nsew")
             self.views[name] = view
     
     def show_frame(self, frame_name):
+        # Notify views about their state change
+        for name, view in self.views.items():
+            if name == frame_name:
+                if hasattr(view, 'on_show'):
+                    view.on_show()
+            else:
+                if hasattr(view, 'on_hide'):
+                    view.on_hide()
+        
         self.views[frame_name].tkraise()
     
     def show_home(self):
@@ -118,12 +133,6 @@ class TrainingAssistantController(tk.Tk):
     def update_theme(self):
         for view in self.views.values():
             view.update_theme()
-    
-    def rebind_shortcuts(self):
-        self.unbind_all("<Key>")
-        for view in self.views.values():
-            if hasattr(view, 'bind_shortcuts'):
-                view.bind_shortcuts()
 
 if __name__ == "__main__":
     app = TrainingAssistantController()

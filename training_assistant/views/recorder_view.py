@@ -7,7 +7,6 @@ class RecordView(BaseView):
     def __init__(self, parent, controller, model):
         super().__init__(parent, controller, model)
         self.create_widgets()
-        self.bind_shortcuts()
     
     def create_widgets(self):
         # Frame for the main content
@@ -66,12 +65,6 @@ class RecordView(BaseView):
         style.configure("Record.TButton", background="#dc3545", foreground="#ffffff")
         style.map("Record.TButton", background=[('active', '#c82333')])
     
-    def bind_shortcuts(self):
-        """Binds global keyboard shortcuts."""
-        shortcuts = self.model.settings["shortcuts"]
-        self.controller.bind_all(shortcuts["back"], lambda e: self.controller.show_home())
-        self.controller.bind_all(shortcuts["settings"], lambda e: self.controller.show_settings())
-
     def update_ui_state(self, is_recording):
         """Updates the state of UI elements based on recording status."""
         state = 'disabled' if is_recording else 'normal'

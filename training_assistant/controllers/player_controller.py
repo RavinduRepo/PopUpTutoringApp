@@ -187,17 +187,37 @@ class PlayerController(BaseController):
             return
         if not self.is_paused and (action_type == 'shortcut' or (action_type == 'typing' and key_combo == 'ctrl+v')):
             self.main_controller.after(100, self.next_step)
-    # --------------------------------------------------------------------------------------------------------------
-    def is_my_shortcut(self, key_combo):# change this functuon based on available shortcuutws from key combos 
-        """Returns True if the given key_combo is in the ignored shortcuts.
-            and executes the associated action.
+            
+    def on_info_shortcut(self):
+        """Handles the 'info' shortcut by toggling the info display."""
+        if self.player_mini_view:
+            if not self.player_mini_view.full_screenshot_window:
+                self.player_mini_view.on_info_press(None) # Call the press method
+            else:
+                self.player_mini_view.on_info_release(None) # Call the release method
+
+    def is_my_shortcut(self, key_combo):
         """
-        if key_combo == 'f9':
-            self.toggle_pause()
-        elif key_combo == 'f10':
-            self.undo_last_step()
-        return key_combo in self.ignored_shortcuts
-    # --------------------------------------------------------------------------------------------------------------
+        Returns True if the given key_combo is a player shortcut and executes the associated action.
+        """
+        player_actions = {
+            'info': self.on_info_shortcut, # Use a dedicated method for the info shortcut
+            'back': self.previous_step,
+            'pause': self.toggle_pause,
+            'next': self.next_step,
+            'stop': self.end_playback
+        }
+        
+        # Check if the pressed key combo is one of the player shortcuts
+        if key_combo in self.ignored_shortcuts_player:
+            action = self.ignored_shortcuts_player[key_combo]
+            action_func = player_actions.get(action)
+            if action_func:
+                action_func()
+                logger.info(f"Executed player shortcut: {action}")
+                return True
+        
+        return False
     
     def is_click_on_app_window(self, x, y):
         """Checks if the click coordinates are within any of the app's windows."""
