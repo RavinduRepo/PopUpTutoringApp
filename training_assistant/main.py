@@ -21,8 +21,9 @@ logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %
 
 def get_base_path():
     """Gets the base path for resources, whether running in PyInstaller or as a script."""
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, 'data')
+    base = getattr(sys, "_MEIPASS", None)
+    if base:
+        return os.path.join(base, "data")
     return os.getcwd()
 
 class TrainingAssistantController(tk.Tk):
