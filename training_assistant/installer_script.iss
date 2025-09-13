@@ -1,7 +1,7 @@
 [Setup]
 ; Basic installation settings
 AppName=Training Assistant
-AppVersion=1.2.2
+AppVersion=1.2.3
 ; The default installation directory name
 DefaultDirName={autopf}\Training Assistant
 DefaultGroupName=Training Assistant
@@ -38,3 +38,7 @@ Name: "{autodesktop}\Training Assistant"; Filename: "{app}\TrainingAssistant.exe
 [Run]
 ; Runs the app after installation
 Filename: "{app}\TrainingAssistant.exe"; Description: "Launch Training Assistant"; Flags: nowait postinstall skipifsilent
+
+[UninstallDelete]
+; Remove the entire installation directory with all its subfolders and files
+Type: filesandordirs; Name: "{app}"

@@ -9,15 +9,16 @@ from tkinter import messagebox, filedialog
 from views.recorder_mini_view import RecorderMiniView
 import base64
 import io
+from .base_controller import BaseController  # New import
 import logging
+
 logger = logging.getLogger(__name__)
 
-from .base_controller import BaseController # New import
-# from utils.image_utility import get_base_path # You can move this utility function here
-class RecorderController(BaseController): # Inherit from BaseController
 
+# from utils.image_utility import get_base_path # You can move this utility function here
+class RecorderController(BaseController):  # Inherit from BaseController
     def __init__(self, main_controller, event_listener):
-        super().__init__(main_controller, event_listener) # Initialize the parent class
+        super().__init__(main_controller, event_listener)  # Initialize the parent class
         self.is_recording = False
         self.is_paused = False
         self.steps = []
@@ -25,16 +26,16 @@ class RecorderController(BaseController): # Inherit from BaseController
         self.save_file_path = None
         self.tutorial_name = ""
         self.current_step_data = None
-        
+
         pyautogui.FAILSAFE = False
 
     def setup_subscriptions(self):
         """Subscribes to events from the EventListener."""
-        self.event_listener.subscribe_mouse('single_click', self.on_click)
-        self.event_listener.subscribe_mouse('double_click', self.on_click)
-        self.event_listener.subscribe_keyboard('hotkey', self.on_hotkey)
-        self.event_listener.subscribe_keyboard('typing', self.on_typing)
-    
+        self.event_listener.subscribe_mouse("single_click", self.on_click)
+        self.event_listener.subscribe_mouse("double_click", self.on_click)
+        self.event_listener.subscribe_keyboard("hotkey", self.on_hotkey)
+        self.event_listener.subscribe_keyboard("typing", self.on_typing)
+
     def start_recording(self):
         """Starts a new tutorial recording and sets the save path."""
         if self.is_recording:
@@ -43,7 +44,7 @@ class RecorderController(BaseController): # Inherit from BaseController
         file_path = filedialog.asksaveasfilename(
             defaultextension=".json",
             filetypes=[("JSON files", "*.json")],
-            title="Save Tutorial As"
+            title="Save Tutorial As",
         )
         if file_path:
             tutorial_name = os.path.splitext(os.path.basename(file_path))[0]
@@ -57,24 +58,26 @@ class RecorderController(BaseController): # Inherit from BaseController
         self.save_file_path = file_path
         self.tutorial_name = tutorial_name
         self.current_step_data = None
-        
+
         self.recorder_mini_view = RecorderMiniView(
             parent=self.main_controller,
             toggle_pause_callback=self.toggle_pause,
             stop_recording_callback=self.stop_recording,
-            undo_last_step_callback=self.undo_last_step
+            undo_last_step_callback=self.undo_last_step,
         )
         self.recorder_mini_view.create_window()
         self.recorder_mini_view.update_view(len(self.steps), self.is_paused, None)
-        
+
         self.main_controller.iconify()
 
         self.setup_subscriptions()
-        self.start_event_listener() # Use the method from the base class
-        
-        self.main_controller.views['record'].update_ui_state(True)
-        self.main_controller.views['record'].update_status(f"Recording '{self.tutorial_name}'... Use F9 to pause/resume, F10 to undo.")
-        
+        self.start_event_listener()  # Use the method from the base class
+
+        self.main_controller.views["record"].update_ui_state(True)
+        self.main_controller.views["record"].update_status(
+            f"Recording '{self.tutorial_name}'... Use F9 to pause/resume, F10 to undo."
+        )
+
         logger.info(f"Recording started. Saving to {self.save_file_path}")
         return True
 
@@ -82,48 +85,52 @@ class RecorderController(BaseController): # Inherit from BaseController
         """Stops the recording and saves the tutorial to the predetermined path."""
         if not self.is_recording:
             return None
-        
+
         self.is_recording = False
         self.is_paused = False
 
-        self.stop_event_listener() # Use the method from the base class
+        self.stop_event_listener()  # Use the method from the base class
 
         if self.recorder_mini_view:
             self.recorder_mini_view.destroy_window()
 
         self.main_controller.deiconify()
-        
+
         if not self.steps:
             messagebox.showinfo("Recording Stopped", "No steps were recorded.")
             logger.info("No steps were recorded.")
             self.save_file_path = None
-            self.main_controller.views['record'].update_ui_state(False)
-            self.main_controller.views['record'].update_status("Recording stopped.")
-            self.main_controller.views['record'].update_step_count(0)
+            self.main_controller.views["record"].update_ui_state(False)
+            self.main_controller.views["record"].update_status("Recording stopped.")
+            self.main_controller.views["record"].update_step_count(0)
             return None
-        
+
         tutorial_data = {
             "name": self.tutorial_name,
             "created": datetime.now().isoformat(),
             "steps": self.steps,
-            "version": "v1.2.2"
+            "version": "v1.2.3",
         }
-        
+
         try:
             if self.save_file_path:
-                with open(self.save_file_path, 'w') as f:
+                with open(self.save_file_path, "w") as f:
                     json.dump(tutorial_data, f, indent=2)
-                messagebox.showinfo("Success", f"Tutorial saved successfully to {self.save_file_path}")
+                messagebox.showinfo(
+                    "Success", f"Tutorial saved successfully to {self.save_file_path}"
+                )
             else:
                 messagebox.showerror("Save Error", "No save path was specified.")
         except Exception as e:
-            messagebox.showerror("Save Error", f"An error occurred while saving the tutorial: {e}")
+            messagebox.showerror(
+                "Save Error", f"An error occurred while saving the tutorial: {e}"
+            )
         logger.info(f"Tutorial saved to: {self.save_file_path}")
         self.save_file_path = None
-        self.main_controller.views['record'].update_ui_state(False)
-        self.main_controller.views['record'].update_status("Recording stopped.")
-        self.main_controller.views['record'].update_step_count(0)
-        
+        self.main_controller.views["record"].update_ui_state(False)
+        self.main_controller.views["record"].update_status("Recording stopped.")
+        self.main_controller.views["record"].update_step_count(0)
+
         return self.save_file_path
 
     def toggle_pause(self):
@@ -131,12 +138,14 @@ class RecorderController(BaseController): # Inherit from BaseController
         self.is_paused = not self.is_paused
         status = "paused" if self.is_paused else "resumed"
         logger.info(f"Recording {status}")
-        self.main_controller.views['record'].update_status(f"Recording {status}.")
+        self.main_controller.views["record"].update_status(f"Recording {status}.")
         thumb_image = None
-        if self.current_step_data and self.current_step_data.get('thumb'):
-            thumb_data = base64.b64decode(self.current_step_data['thumb'])
+        if self.current_step_data and self.current_step_data.get("thumb"):
+            thumb_data = base64.b64decode(self.current_step_data["thumb"])
             thumb_image = Image.open(io.BytesIO(thumb_data))
-        self.recorder_mini_view.update_view(len(self.steps), self.is_paused, thumb_image)
+        self.recorder_mini_view.update_view(
+            len(self.steps), self.is_paused, thumb_image
+        )
 
     def undo_last_step(self):
         """Removes the last recorded step."""
@@ -145,24 +154,26 @@ class RecorderController(BaseController): # Inherit from BaseController
             self.current_step_data = self.steps[-1] if self.steps else None
             logger.info("Undone last step.")
             logger.debug(last_step)
-        
+
         thumb_image = None
-        if self.current_step_data and self.current_step_data.get('thumb'):
-            thumb_data = base64.b64decode(self.current_step_data['thumb'])
+        if self.current_step_data and self.current_step_data.get("thumb"):
+            thumb_data = base64.b64decode(self.current_step_data["thumb"])
             thumb_image = Image.open(io.BytesIO(thumb_data))
 
         self.recorder_mini_view.set_current_step_data(self.current_step_data)
-        self.recorder_mini_view.update_view(len(self.steps), self.is_paused, thumb_image)
-        self.main_controller.views['record'].update_step_count(len(self.steps))
+        self.recorder_mini_view.update_view(
+            len(self.steps), self.is_paused, thumb_image
+        )
+        self.main_controller.views["record"].update_step_count(len(self.steps))
         return last_step
 
     def on_click(self, data):
         """Handles a single click event from the listener."""
         if not self.is_recording or self.is_paused:
             return
-        
-        x, y , type = data['x'], data['y'], data['button']
-        
+
+        x, y, type = data["x"], data["y"], data["button"]
+
         if self.is_click_on_app_window(x, y):
             logger.debug("Click detected on app window, ignoring.")
             return
@@ -175,32 +186,32 @@ class RecorderController(BaseController): # Inherit from BaseController
         """Handles a typing event from the listener."""
         if not self.is_recording or self.is_paused:
             return
-        text = data['message']
+        text = data["message"]
         logger.info(f"Recorded typing: {data['message']}")
         self.capture_step(0, 0, action_type="typing", text=text)
 
     def on_hotkey(self, data):
         """Handles a hotkey event from the listener. Saves pressed keys and ignores shortcuts from settings.json."""
-        if not self.is_recording:
+        if not self.is_recording or self.is_paused:
             return
-        key_combo = data.get('key')
+        key_combo = data.get("key")
         if self.is_my_shortcut(key_combo):
             logger.info(f"Ignored and executed shortcut: {key_combo}")
             return
-        
+
         self.capture_step(0, 0, action_type="shortcut", keys=key_combo)
-    
+
     def is_my_shortcut(self, key_combo):
         """
         Returns True if the given key_combo is a recorder shortcut and executes the associated action.
         """
         recorder_actions = {
-            'info': self.on_info_shortcut, # Use a dedicated method for the info shortcut
-            'pause': self.toggle_pause,
-            'back': self.undo_last_step,
-            'stop': self.stop_recording
+            "info": self.on_info_shortcut,  # Use a dedicated method for the info shortcut
+            "pause": self.toggle_pause,
+            "back": self.undo_last_step,
+            "stop": self.stop_recording,
         }
-        
+
         if key_combo in self.ignored_shortcuts_recorder:
             action = self.ignored_shortcuts_recorder[key_combo]
             action_func = recorder_actions.get(action)
@@ -208,78 +219,86 @@ class RecorderController(BaseController): # Inherit from BaseController
                 action_func()
                 logger.info(f"Executed recorder shortcut: {action}")
                 return True
-        
+
         return False
-    
+
     def on_info_shortcut(self):
         """Handles the 'info' shortcut by toggling the info display."""
         if self.recorder_mini_view:
             if not self.recorder_mini_view.full_screenshot_window:
-                self.recorder_mini_view.on_info_press(None) # Call the press method
+                self.recorder_mini_view.on_info_press(None)  # Call the press method
             else:
-                self.recorder_mini_view.on_info_release(None) # Call the release method
+                self.recorder_mini_view.on_info_release(None)  # Call the release method
 
     def is_click_on_app_window(self, x, y):
         """Checks if the click coordinates are within any of the app's windows."""
-        if super().is_click_on_app_window(x, y): # Call the parent method first
+        if super().is_click_on_app_window(x, y):  # Call the parent method first
             return True
-            
+
         if self.recorder_mini_view and self.recorder_mini_view.window:
             mini_view_rect = self.get_window_rect(self.recorder_mini_view.window)
-            if mini_view_rect[0] <= x <= mini_view_rect[2] and \
-               mini_view_rect[1] <= y <= mini_view_rect[3]:
+            if (
+                mini_view_rect[0] <= x <= mini_view_rect[2]
+                and mini_view_rect[1] <= y <= mini_view_rect[3]
+            ):
                 return True
-                
+
         return False
 
-    def capture_step(self, x, y, action_type='left_click', text='', keys='', notes=''):
+    def capture_step(self, x, y, action_type="left_click", text="", keys="", notes=""):
         """Captures a screenshot and saves the step data as a Base64 string."""
         try:
             with mss.mss() as sct:
                 screenshot = sct.grab(sct.monitors[0])
-                full_image = Image.frombytes('RGB', screenshot.size, screenshot.bgra, 'raw', 'BGRX')
-            
-            thumb_size = max(48, min(100, full_image.width // 10, full_image.height // 10))
+                full_image = Image.frombytes(
+                    "RGB", screenshot.size, screenshot.bgra, "raw", "BGRX"
+                )
+
+            thumb_size = max(
+                48, min(100, full_image.width // 10, full_image.height // 10)
+            )
             left = max(0, x - thumb_size // 2)
             top = max(0, y - thumb_size // 2)
             right = min(full_image.width, x + thumb_size // 2)
             bottom = min(full_image.height, y + thumb_size // 2)
             cropped_image = full_image.crop((left, top, right, bottom))
-            
+
             buffered = io.BytesIO()
             full_image.save(buffered, format="PNG")
-            img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
-            
+            img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
             thumb_buffered = io.BytesIO()
             cropped_image.save(thumb_buffered, format="PNG")
-            thumb_str = base64.b64encode(thumb_buffered.getvalue()).decode('utf-8')
-            
+            thumb_str = base64.b64encode(thumb_buffered.getvalue()).decode("utf-8")
+
             step_num = len(self.steps) + 1
-            
+
             step = {
                 "step_number": step_num,
                 "action_type": action_type,
                 "screenshot": img_str,
                 "thumb": thumb_str,
-                "text": text, # typed text in the step
-                "keys": keys, # hot keys
+                "text": text,  # typed text in the step
+                "keys": keys,  # hot keys
                 "coordinates": [x, y],
                 "timestamp": datetime.now().isoformat(),
-                "notes": notes # additional notes typed
+                "notes": notes,  # additional notes typed
             }
-            
+
             self.steps.append(step)
             self.current_step_data = step
-            logger.info(f"Captured step {step_num} at ({x}, {y}) with action: {action_type}, text: {text}, keys: {keys}")
-            
+            logger.info(
+                f"Captured step {step_num} at ({x}, {y}) with action: {action_type}, text: {text}, keys: {keys}"
+            )
+
             self.recorder_mini_view.set_current_step_data(self.current_step_data)
-            self.recorder_mini_view.update_view(len(self.steps), self.is_paused, cropped_image)
-            self.main_controller.views['record'].update_step_count(step_num)
+            self.recorder_mini_view.update_view(
+                len(self.steps), self.is_paused, cropped_image
+            )
+            self.main_controller.views["record"].update_step_count(step_num)
 
         except Exception as e:
             logger.warning(f"Error capturing step: {e}")
-            messagebox.showerror("Capture Error", f"An error occurred while capturing a step: {e}")
-
-
-
-
+            messagebox.showerror(
+                "Capture Error", f"An error occurred while capturing a step: {e}"
+            )
