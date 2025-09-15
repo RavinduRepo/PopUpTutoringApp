@@ -1,0 +1,21 @@
+
+# Python
+*.pyc
+*/__pycache__/
+__pycache__/
+venv/
+.venv/
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Inno
+InstallerOutput/*
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
