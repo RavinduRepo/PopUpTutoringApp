@@ -31,6 +31,44 @@ class RecordView(BaseView):
         )
         self.name_entry.pack(side=tk.LEFT, expand=True, fill="x")
 
+        # Audio options frame
+        audio_frame = ttk.LabelFrame(main_frame, text="Audio Options", padding=10)
+        audio_frame.pack(pady=10, fill="x")
+
+        self.audio_option_var = tk.StringVar(value="No Audio")
+        self.audio_duration_var = tk.StringVar(value="Until next step")
+
+        def toggle_duration_menu():
+            if self.audio_option_var.get() == "Include Audio":
+                self.duration_menu.config(state="readonly")
+            else:
+                self.duration_menu.config(state="disabled")
+
+        ttk.Radiobutton(
+            audio_frame,
+            text="No Audio",
+            variable=self.audio_option_var,
+            value="No Audio",
+            command=toggle_duration_menu,
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Radiobutton(
+            audio_frame,
+            text="Include Audio",
+            variable=self.audio_option_var,
+            value="Include Audio",
+            command=toggle_duration_menu,
+        ).pack(side=tk.LEFT, padx=5)
+
+        self.duration_menu = ttk.Combobox(
+            audio_frame,
+            textvariable=self.audio_duration_var,
+            values=["Until next step", "5 seconds", "10 seconds"],
+            state="disabled",
+            width=15,
+        )
+        self.duration_menu.pack(side=tk.LEFT, padx=10)
+
         # Recording controls frame
         controls_frame = ttk.Frame(main_frame)
         controls_frame.pack(pady=20)
@@ -38,7 +76,9 @@ class RecordView(BaseView):
         self.start_btn = ttk.Button(
             controls_frame,
             text="🔴 Start Recording",
-            command=lambda: self.controller.recorder.start_recording(),  # CALL CONTROLLER
+            command=lambda: self.controller.recorder.start_recording(
+                self.audio_option_var.get(), self.audio_duration_var.get()
+            ),
             width=20,
             style="Record.TButton",
         )

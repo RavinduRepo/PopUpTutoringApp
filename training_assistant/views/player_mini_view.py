@@ -19,7 +19,7 @@ def get_base_path():
 class PlayerMiniView(MiniViewBase):
     """Handles the UI for the tutorial playback."""
 
-    def __init__(self, parent, next_step_callback, previous_step_callback, toggle_pause_callback, end_playback_callback):
+    def __init__(self, parent, next_step_callback, previous_step_callback, toggle_pause_callback, end_playback_callback, toggle_mute_callback):
         super().__init__(parent)
         self.control_window = None
         self.overlay_window = None
@@ -32,7 +32,9 @@ class PlayerMiniView(MiniViewBase):
         self.previous_step_callback = previous_step_callback
         self.toggle_pause_callback = toggle_pause_callback
         self.end_playback_callback = end_playback_callback
+        self.toggle_mute_callback = toggle_mute_callback
         self.thumbnail_photo = None
+        self.mute_btn = None
 
     def create_control_window(self):
         """Creates a small, always-on-top control window for playback."""
@@ -64,6 +66,9 @@ class PlayerMiniView(MiniViewBase):
         self.info_btn.bind("<ButtonPress-1>", self.on_info_press)
         self.info_btn.bind("<ButtonRelease-1>", self.on_info_release)
         
+        self.mute_btn = ttk.Button(button_frame, text="🔊", width=3, command=self.toggle_mute_callback)
+        self.mute_btn.pack(side=tk.LEFT, padx=5)
+
         nav_button_frame = ttk.Frame(button_frame)
         nav_button_frame.pack(side=tk.LEFT, padx=5)
         
@@ -78,6 +83,10 @@ class PlayerMiniView(MiniViewBase):
         self.window.update_idletasks()
         win_width = self.window.winfo_reqwidth()
         self.window.geometry(f"+{screen_width - win_width - 10}+10")
+        
+    def update_mute_button(self, is_muted):
+        if self.mute_btn:
+            self.mute_btn.config(text="🔇" if is_muted else "🔊")
         
     def update_play_pause_button(self, text):
         if self.play_pause_btn:

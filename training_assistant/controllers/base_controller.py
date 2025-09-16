@@ -5,7 +5,7 @@ import os
 import logging
 import time
 import sys
-from audio_controller import AudioController
+from .audio_controller import AudioController
 
 logger = logging.getLogger(__name__)
 
@@ -124,4 +124,3 @@ class BaseController:
         ):
             return True
         return False
-

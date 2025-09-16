@@ -18,17 +18,27 @@ def get_base_path():
 class RecorderMiniView(MiniViewBase):
     """A minimal, always-on-top control window for the recorder."""
 
-    def __init__(self, parent, toggle_pause_callback, stop_recording_callback, undo_last_step_callback):
+    def __init__(
+        self,
+        parent,
+        toggle_pause_callback,
+        stop_recording_callback,
+        undo_last_step_callback,
+        audio_option="No Audio",
+    ):
         super().__init__(parent)
         self.pause_btn = None
         self.toggle_pause_callback = toggle_pause_callback
         self.stop_recording_callback = stop_recording_callback
         self.undo_last_step_callback = undo_last_step_callback
-        
+        self.audio_option = audio_option
+
         self.step_label_var = None
         self.thumbnail_label = None
         self.thumbnail_photo = None
         self.info_btn = None
+        self.audio_for_step_var = tk.BooleanVar(value=True)
+        self.audio_checkbutton = None
 
     def create_window(self):
         """Creates and displays the mini control window."""
@@ -73,8 +83,21 @@ class RecorderMiniView(MiniViewBase):
         )
         self.stop_btn.pack(side=tk.LEFT, padx=2)
 
+        if self.audio_option == "Include Audio":
+            self.audio_checkbutton = ttk.Checkbutton(
+                control_frame,
+                text="Record Audio",
+                variable=self.audio_for_step_var,
+                onvalue=True,
+                offvalue=False,
+            )
+            self.audio_checkbutton.pack(pady=5)
+
         self.parent.update_idletasks()
         self.window.geometry(f"+10+10")
+
+    def get_audio_var(self):
+        return self.audio_for_step_var
         
     def update_pause_button(self, is_paused):
         """Updates the text on the pause button based on state."""

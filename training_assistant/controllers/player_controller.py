@@ -36,6 +36,7 @@ class PlayerController(BaseController):
             previous_step_callback=self.previous_step,
             toggle_pause_callback=self.toggle_pause,
             end_playback_callback=self.end_playback,
+            toggle_mute_callback=self.toggle_mute,
         )
 
     def setup_subscriptions(self):
@@ -112,6 +113,7 @@ class PlayerController(BaseController):
 
         self.stop_event_listener()  # Use the method from the base class
 
+        self.audio_controller.stop_playing()
         self.player_mini_view.destroy_overlay()
         self.player_mini_view.destroy_control_window()
 
@@ -122,10 +124,16 @@ class PlayerController(BaseController):
         self.main_controller.views["play"].update_status("Idle")
         self.main_controller.show_home()
 
+    def toggle_mute(self):
+        """Toggles the audio mute state."""
+        is_muted = self.audio_controller.toggle_mute()
+        self.player_mini_view.update_mute_button(is_muted)
+
     def toggle_pause(self):
         """Toggles the playback pause state."""
         self.is_paused = not self.is_paused
         if self.is_paused:
+            self.audio_controller.stop_playing()
             self.player_mini_view.update_play_pause_button("▶ Resume")
             self.player_mini_view.destroy_overlay()
             self.main_controller.views["play"].update_status("Playback Paused")
@@ -336,6 +344,7 @@ class PlayerController(BaseController):
             "recorded_coordinates": recorded_coordinates,  # coordinates recorded on record time
         }
 
+        self.audio_controller.play_audio(step.get("audio"))
         self.player_mini_view.update_step_display(step_info)
 
         if action_type.lower() in ["left_click", "right_click", "double_click"]:

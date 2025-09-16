@@ -26,6 +26,9 @@ class RecorderController(BaseController):  # Inherit from BaseController
         self.save_file_path = None
         self.tutorial_name = ""
         self.current_step_data = None
+        self.audio_option = None
+        self.audio_duration = None
+        self.audio_for_step_var = None
 
         pyautogui.FAILSAFE = False
 
@@ -36,7 +39,7 @@ class RecorderController(BaseController):  # Inherit from BaseController
         self.event_listener.subscribe_keyboard("hotkey", self.on_hotkey)
         self.event_listener.subscribe_keyboard("typing", self.on_typing)
 
-    def start_recording(self):
+    def start_recording(self, audio_option, audio_duration):
         """Starts a new tutorial recording and sets the save path."""
         if self.is_recording:
             return False
@@ -58,13 +61,17 @@ class RecorderController(BaseController):  # Inherit from BaseController
         self.save_file_path = file_path
         self.tutorial_name = tutorial_name
         self.current_step_data = None
+        self.audio_option = audio_option
+        self.audio_duration = audio_duration
 
         self.recorder_mini_view = RecorderMiniView(
             parent=self.main_controller,
             toggle_pause_callback=self.toggle_pause,
             stop_recording_callback=self.stop_recording,
             undo_last_step_callback=self.undo_last_step,
+            audio_option=self.audio_option,
         )
+        self.audio_for_step_var = self.recorder_mini_view.get_audio_var()
         self.recorder_mini_view.create_window()
         self.recorder_mini_view.update_view(len(self.steps), self.is_paused, None)
 
@@ -72,6 +79,9 @@ class RecorderController(BaseController):  # Inherit from BaseController
 
         self.setup_subscriptions()
         self.start_event_listener()  # Use the method from the base class
+
+        if self.audio_option == "Include Audio":
+            self.audio_controller.start_recording()
 
         self.main_controller.views["record"].update_ui_state(True)
         self.main_controller.views["record"].update_status(
@@ -85,6 +95,21 @@ class RecorderController(BaseController):  # Inherit from BaseController
         """Stops the recording and saves the tutorial to the predetermined path."""
         if not self.is_recording:
             return None
+
+        # Capture audio for the final step
+        if self.audio_option == "Include Audio" and self.steps:
+            max_duration_ms = None
+            if "5 seconds" in self.audio_duration:
+                max_duration_ms = 5000
+            elif "10 seconds" in self.audio_duration:
+                max_duration_ms = 10000
+
+            audio_data = self.audio_controller.stop_recording(
+                max_duration_ms=max_duration_ms
+            )
+            if audio_data and self.steps[-1].get("record_audio_for_this_step"):
+                self.steps[-1]["audio"] = audio_data
+                logger.info(f"Saved audio for final step {len(self.steps)}.")
 
         self.is_recording = False
         self.is_paused = False
@@ -137,6 +162,13 @@ class RecorderController(BaseController):  # Inherit from BaseController
         """Toggles the recording pause state."""
         self.is_paused = not self.is_paused
         status = "paused" if self.is_paused else "resumed"
+
+        if self.audio_option == "Include Audio":
+            if self.is_paused:
+                self.audio_controller.pause_recording()
+            else:
+                self.audio_controller.resume_recording()
+
         logger.info(f"Recording {status}")
         self.main_controller.views["record"].update_status(f"Recording {status}.")
         thumb_image = None
@@ -247,6 +279,27 @@ class RecorderController(BaseController):  # Inherit from BaseController
 
     def capture_step(self, x, y, action_type="left_click", text="", keys="", notes=""):
         """Captures a screenshot and saves the step data as a Base64 string."""
+        # 1. If audio is on, stop recording for the PREVIOUS step and save it.
+        if (
+            self.is_recording
+            and not self.is_paused
+            and self.audio_option == "Include Audio"
+            and self.steps
+        ):
+            max_duration_ms = None
+            if "5 seconds" in self.audio_duration:
+                max_duration_ms = 5000
+            elif "10 seconds" in self.audio_duration:
+                max_duration_ms = 10000
+
+            audio_data = self.audio_controller.stop_recording(
+                max_duration_ms=max_duration_ms
+            )
+
+            if audio_data and self.steps[-1].get("record_audio_for_this_step"):
+                self.steps[-1]["audio"] = audio_data
+                logger.info(f"Saved audio for step {len(self.steps)}.")
+
         try:
             with mss.mss() as sct:
                 screenshot = sct.grab(sct.monitors[0])
@@ -283,6 +336,10 @@ class RecorderController(BaseController):  # Inherit from BaseController
                 "coordinates": [x, y],
                 "timestamp": datetime.now().isoformat(),
                 "notes": notes,  # additional notes typed
+                "audio": None,  # Placeholder for audio data
+                "record_audio_for_this_step": self.audio_for_step_var.get()
+                if self.audio_for_step_var
+                else False,
             }
 
             self.steps.append(step)
@@ -290,6 +347,14 @@ class RecorderController(BaseController):  # Inherit from BaseController
             logger.info(
                 f"Captured step {step_num} at ({x}, {y}) with action: {action_type}, text: {text}, keys: {keys}"
             )
+
+            # 2. After saving the new step, start audio recording for THIS step if needed.
+            if (
+                self.is_recording
+                and not self.is_paused
+                and self.audio_option == "Include Audio"
+            ):
+                self.audio_controller.start_recording()
 
             self.recorder_mini_view.set_current_step_data(self.current_step_data)
             self.recorder_mini_view.update_view(

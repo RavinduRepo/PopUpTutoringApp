@@ -18,6 +18,7 @@ class AudioController:
         self.stream = None
         self.playback_position = 0
         self.audio_to_play = None
+        self.is_muted = False
 
     def _audio_callback(self, indata, frames, time, status):
         if self.is_recording and not self.is_paused:
@@ -53,18 +54,23 @@ class AudioController:
             return True
         return False
 
-    def stop_recording(self):
+    def stop_recording(self, max_duration_ms=None):
         if not self.is_recording:
-            return False
+            return None
 
         self.is_recording = False
         self.is_paused = False
         if self.stream is not None:
             self.stream.stop()
             self.stream.close()
+            self.stream = None
+
+        if not self.audio_chunks:
+            return None
 
         # Combine chunks into single array
         recording = np.concatenate(self.audio_chunks, axis=0)
+        self.audio_chunks = []
 
         # Convert NumPy array to AudioSegment
         audio_segment = AudioSegment(
@@ -73,6 +79,10 @@ class AudioController:
             frame_rate=self.fs,
             channels=self.channels,
         )
+
+        # Trim if necessary
+        if max_duration_ms and len(audio_segment) > max_duration_ms:
+            audio_segment = audio_segment[:max_duration_ms]
 
         # Export as MP3 to an in-memory buffer
         buffer = io.BytesIO()
@@ -83,58 +93,48 @@ class AudioController:
         encoded = base64.b64encode(mp3_bytes).decode("utf-8")
         data = {"sample_rate": self.fs, "audio_data": encoded, "format": "mp3"}
 
-        # Save JSON
-        with open(self.json_file, "w") as f:
-            json.dump(data, f)
+        return data
 
-        return True
-
-    def play_audio(self):
-        try:
-            # If not already loaded, load the audio file
-            if self.audio_to_play is None:
-                with open(self.json_file, "r") as f:
-                    data = json.load(f)
-                audio_bytes = base64.b64decode(data["audio_data"])
-                audio_format = data.get("format", "wav")
-
-                if audio_format == "mp3":
-                    audio = AudioSegment.from_mp3(io.BytesIO(audio_bytes))
-                    fs = audio.frame_rate
-                    raw_audio = np.array(audio.get_array_of_samples(), dtype=np.int16)
-                    if audio.channels == 2:
-                        raw_audio = raw_audio.reshape((-1, 2))
-                    self.audio_to_play = raw_audio
-                else:
-                    fs, audio = read(io.BytesIO(audio_bytes))
-                    self.audio_to_play = audio
-
-            # Play from the current playback position
-            sd.play(self.audio_to_play[self.playback_position :], self.fs)
-
-            print("Playback started/resumed.")
-            sd.wait()
-            self.playback_position = 0  # Reset when playback finishes
-            self.audio_to_play = None  # Clear audio for next time
-            return True
-        except Exception as e:
-            print("Playback error:", e)
+    def play_audio(self, audio_data):
+        if self.is_muted or not audio_data or not audio_data.get("audio_data"):
             return False
 
-    def pause_playing(self):
-        if self.audio_to_play is not None and sd.get_stream().active:
-            # Get the current position and stop the stream
-            status = sd.get_stream()._read_and_write()
-            self.playback_position += status.read_bytes / (
-                self.fs * self.channels * self.audio_to_play.dtype.itemsize
-            )
-            sd.stop()
-            print("Playback paused.")
+        try:
+            # Stop any currently playing audio first.
+            self.stop_playing()
+
+            audio_bytes = base64.b64decode(audio_data["audio_data"])
+            audio_format = audio_data.get("format", "mp3")
+
+            if audio_format == "mp3":
+                audio = AudioSegment.from_mp3(io.BytesIO(audio_bytes))
+                fs = audio.frame_rate
+                raw_audio = np.array(audio.get_array_of_samples(), dtype=np.int16)
+                if audio.channels == 2:
+                    raw_audio = raw_audio.reshape((-1, 2))
+                self.audio_to_play = raw_audio
+                self.fs = fs
+            else:  # Fallback for wav
+                fs, audio = read(io.BytesIO(audio_bytes))
+                self.audio_to_play = audio
+                self.fs = fs
+
+            # Play in non-blocking mode
+            sd.play(self.audio_to_play, self.fs)
+            print("Audio playback started for step.")
             return True
-        return False
+        except Exception as e:
+            print(f"Playback error: {e}")
+            self.audio_to_play = None
+            return False
+
+    def toggle_mute(self):
+        self.is_muted = not self.is_muted
+        if self.is_muted:
+            self.stop_playing()
+        return self.is_muted
 
     def stop_playing(self):
         sd.stop()
         self.playback_position = 0
         self.audio_to_play = None
-        print("Playback stopped.")
